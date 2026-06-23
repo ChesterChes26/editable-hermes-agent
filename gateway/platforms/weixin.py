@@ -139,6 +139,9 @@ ITEM_IMAGE = 2
 ITEM_VOICE = 3
 ITEM_FILE = 4
 ITEM_VIDEO = 5
+ITEM_RECORD = 6  # 合并转发聊天记录
+ITEM_APPMSG = 7  # 分享链接 / 文章 / 小程序
+ITEM_NOTE = 8  # 收藏 / 笔记
 
 MSG_TYPE_USER = 1
 MSG_TYPE_BOT = 2
@@ -940,12 +943,13 @@ def _coerce_bool(value: Any, default: bool = True) -> bool:
 
 def _extract_text(item_list: List[Dict[str, Any]]) -> str:
     for item in item_list:
-        if item.get("type") == ITEM_TEXT:
+        item_type = item.get("type")
+        if item_type == ITEM_TEXT:
             text = str((item.get("text_item") or {}).get("text") or "")
             ref = item.get("ref_msg") or {}
             ref_item = ref.get("message_item") or {}
             ref_type = ref_item.get("type")
-            if ref_type in {ITEM_IMAGE, ITEM_VIDEO, ITEM_FILE, ITEM_VOICE}:
+            if ref_type in {ITEM_IMAGE, ITEM_VIDEO, ITEM_FILE, ITEM_VOICE, ITEM_APPMSG}:
                 title = ref.get("title") or ""
                 prefix = f"[引用媒体: {title}]\n" if title else "[引用媒体]\n"
                 return f"{prefix}{text}".strip()
@@ -959,11 +963,57 @@ def _extract_text(item_list: List[Dict[str, Any]]) -> str:
                 if parts:
                     return f"[引用: {' | '.join(parts)}]\n{text}".strip()
             return text
+        if item_type == ITEM_APPMSG:
+            appmsg = item.get("appmsg_item") or {}
+            title = str(appmsg.get("title") or "").strip()
+            desc = str(appmsg.get("desc") or appmsg.get("description") or "").strip()
+            url = str(appmsg.get("url") or "").strip()
+            parts = []
+            if title:
+                parts.append(f"[分享链接: {title}]")
+            if desc:
+                parts.append(desc)
+            if url:
+                parts.append(f"🔗 {url}")
+            if parts:
+                return "\n".join(parts)
+        if item_type == ITEM_RECORD:
+            record = item.get("record_item") or {}
+            title = str(record.get("title") or "").strip()
+            data = record.get("data") or {}
+            nested_items = data.get("item_list") or []
+            nested_text = _extract_text(nested_items)
+            label = f"[聊天记录: {title}]" if title else "[聊天记录]"
+            if nested_text:
+                return f"{label}\n{nested_text}"
+            return label
+        if item_type == ITEM_NOTE:
+            note = item.get("note_item") or {}
+            content = str(note.get("content") or note.get("text") or "").strip()
+            title = str(note.get("title") or "").strip()
+            if title and content:
+                return f"[笔记: {title}]\n{content}"
+            if content:
+                return f"[笔记]\n{content}"
+            if title:
+                return f"[笔记: {title}]"
     for item in item_list:
-        if item.get("type") == ITEM_VOICE:
+        item_type = item.get("type")
+        if item_type == ITEM_VOICE:
             voice_text = str((item.get("voice_item") or {}).get("text") or "")
             if voice_text:
                 return voice_text
+        if item_type == ITEM_APPMSG:
+            appmsg = item.get("appmsg_item") or {}
+            title = str(appmsg.get("title") or "").strip()
+            url = str(appmsg.get("url") or "").strip()
+            parts = []
+            if title:
+                parts.append(f"[分享链接: {title}]")
+            if url:
+                parts.append(f"🔗 {url}")
+            if parts:
+                return "\n".join(parts)
     return ""
 
 
@@ -1225,6 +1275,15 @@ class WeixinAdapter(BasePlatformAdapter):
         self._pending_text_batches: Dict[str, MessageEvent] = {}
         self._pending_text_batch_tasks: Dict[str, asyncio.Task] = {}
 
+        # Auto-loaded skill(s) for every session.  Configurable via
+        # config.extra.auto_skill or WEIXIN_AUTO_SKILL env var.
+        # Default: "obsidian-sync" to archive all messages to Obsidian.
+        _auto_skill_raw = extra.get("auto_skill") or os.getenv("WEIXIN_AUTO_SKILL")
+        if _auto_skill_raw is None:
+            _auto_skill_raw = "obsidian-sync"
+        _auto_skill_raw = str(_auto_skill_raw).strip()
+        self._auto_skill = _auto_skill_raw if _auto_skill_raw else None
+
         if self._account_id and not self._token:
             persisted = load_weixin_account(hermes_home, self._account_id)
             if persisted:
@@ -1462,6 +1521,7 @@ class WeixinAdapter(BasePlatformAdapter):
             media_urls=media_paths,
             media_types=media_types,
             timestamp=datetime.now(),
+            auto_skill=self._auto_skill,
         )
         logger.info("[%s] inbound from=%s type=%s media=%d", self.name, _safe_id(sender_id), source.chat_type, len(media_paths))
         if event.message_type == MessageType.TEXT:
@@ -1568,6 +1628,24 @@ class WeixinAdapter(BasePlatformAdapter):
             if voice_path:
                 media_paths.append(voice_path)
                 media_types.append("audio/silk")
+        elif item_type == ITEM_APPMSG:
+            path = await self._download_appmsg_thumbnail(item)
+            if path:
+                media_paths.append(path)
+                media_types.append("image/jpeg")
+
+    async def _download_appmsg_thumbnail(self, item: Dict[str, Any]) -> Optional[str]:
+        """Download the thumbnail from a forwarded link (appmsg) item."""
+        appmsg = item.get("appmsg_item") or {}
+        thumb_url = str(appmsg.get("thumburl") or "").strip()
+        if not thumb_url:
+            return None
+        try:
+            raw = await _download_bytes(self._poll_session, url=thumb_url, timeout_seconds=15.0)
+            return cache_image_from_bytes(raw, ".jpg")
+        except Exception as exc:
+            logger.debug("[%s] appmsg thumbnail download failed: %s", self.name, exc)
+            return None
 
     async def _download_image(self, item: Dict[str, Any]) -> Optional[str]:
         media = _media_reference(item, "image_item")

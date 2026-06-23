@@ -217,6 +217,15 @@ class QQAdapter(BasePlatformAdapter):
             extra.get("group_allow_from") or extra.get("groupAllowFrom")
         )
 
+        # Auto-loaded skill(s) for every session.  Configurable via
+        # config.extra.auto_skill or QQBOT_AUTO_SKILL env var.
+        # Default: "obsidian-sync" to archive all messages to Obsidian.
+        _auto_skill_raw = extra.get("auto_skill") or os.getenv("QQBOT_AUTO_SKILL")
+        if _auto_skill_raw is None:
+            _auto_skill_raw = "obsidian-sync"
+        _auto_skill_raw = str(_auto_skill_raw).strip()
+        self._auto_skill = _auto_skill_raw if _auto_skill_raw else None
+
         # Connection state
         self._session: Optional[aiohttp.ClientSession] = None
         self._ws: Optional[aiohttp.ClientWebSocketResponse] = None
@@ -1293,6 +1302,7 @@ class QQAdapter(BasePlatformAdapter):
             message_id=msg_id,
             media_urls=image_urls,
             media_types=image_media_types,
+            auto_skill=self._auto_skill,
             timestamp=self._parse_qq_timestamp(timestamp),
         )
         await self.handle_message(event)
@@ -1358,6 +1368,7 @@ class QQAdapter(BasePlatformAdapter):
             message_id=msg_id,
             media_urls=image_urls,
             media_types=image_media_types,
+            auto_skill=self._auto_skill,
             timestamp=self._parse_qq_timestamp(timestamp),
         )
         await self.handle_message(event)
@@ -1433,6 +1444,7 @@ class QQAdapter(BasePlatformAdapter):
             message_id=msg_id,
             media_urls=image_urls,
             media_types=image_media_types,
+            auto_skill=self._auto_skill,
             timestamp=self._parse_qq_timestamp(timestamp),
         )
         await self.handle_message(event)
@@ -1503,6 +1515,7 @@ class QQAdapter(BasePlatformAdapter):
             message_id=msg_id,
             media_urls=image_urls,
             media_types=image_media_types,
+            auto_skill=self._auto_skill,
             timestamp=self._parse_qq_timestamp(timestamp),
         )
         await self.handle_message(event)

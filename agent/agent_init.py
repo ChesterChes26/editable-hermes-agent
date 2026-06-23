@@ -1141,14 +1141,30 @@ def init_agent(
     if not skip_memory:
         try:
             _mem_provider_name = mem_config.get("provider", "") if mem_config else ""
+            _ra().logger.warning(
+                "DIAG: init_agent memory provider block — skip_memory=%s "
+                "mem_config_keys=%s _mem_provider_name=%r",
+                skip_memory, sorted(mem_config.keys()) if mem_config else "None",
+                _mem_provider_name,
+            )
 
             if _mem_provider_name and _mem_provider_name.strip():
                 from agent.memory_manager import MemoryManager as _MemoryManager
                 from plugins.memory import load_memory_provider as _load_mem
                 agent._memory_manager = _MemoryManager()
                 _mp = _load_mem(_mem_provider_name)
+                _ra().logger.warning(
+                    "DIAG: init_agent load_memory_provider('%s') -> %s",
+                    _mem_provider_name,
+                    type(_mp).__name__ if _mp else "None",
+                )
                 if _mp and _mp.is_available():
                     agent._memory_manager.add_provider(_mp)
+                _ra().logger.warning(
+                    "DIAG: init_agent add_provider done — providers=%d is_available=%s",
+                    len(agent._memory_manager.providers),
+                    _mp.is_available() if _mp else "N/A",
+                )
                 if agent._memory_manager.providers:
                     _init_kwargs = {
                         "session_id": agent.session_id,
