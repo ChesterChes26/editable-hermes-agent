@@ -1,0 +1,4 @@
+name: agentmemory-worker
+description: Auto-start agentmemory worker on gateway startup
+events:
+  - gateway:startup
