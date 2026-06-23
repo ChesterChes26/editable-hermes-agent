@@ -82,11 +82,56 @@ DEEPSEEK_API_KEY=sk-xxx
 
 ### 5. 配置 agentmemory 服务
 
-agentmemory plugin 需要 Docker 运行：
+agentmemory 是独立服务，**无需 fork**——直接从 Docker Hub 拉镜像，npm 装 worker 即可。
+它的架构是三层：
+
+```
+plugin（本仓库提供）  →  HTTP :3111  →  worker（npx）  →  iii-engine（Docker）
+  user-plugins/agentmemory/              @agentmemory/agentmemory    rohitg00/agentmemory
+  2个文件，Hermes 适配层                  Node.js 进程，注册路由        Rust 引擎，存储/索引/衰减
+```
 
 ```bash
+# 1. 启动 Docker 引擎
 docker run -d --name agentmemory -p 3111:3111 rohitg00/agentmemory:latest
+
+# 2. 创建配置文件
+mkdir -p ~/.agentmemory
+cat > ~/.agentmemory/.env << 'EOF'
+OPENAI_API_KEY=<deepseek-key>
+OPENAI_BASE_URL=https://api.deepseek.com/v1
+OPENAI_MODEL=deepseek-v4-flash
+EMBEDDING_PROVIDER=local
+AGENTMEMORY_AUTO_COMPRESS=true
+EOF
+
+# 3. 启动 worker
+AGENTMEMORY_USE_DOCKER=1 npx @agentmemory/agentmemory &
+
+# 4. 验证
+sleep 5
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3111/agentmemory/smart-search \
+  -X POST -H "Content-Type: application/json" -d '{"query":"test","limit":1}'
+# 应返回 200
 ```
+
+#### Docker Volume 备份与还原（迁移记忆数据）
+
+agentmemory 的所有记忆（observations、semantic memories 等）持久化在 Docker volume 中，
+不在 `~/.hermes/` 下。换机时可通过 volume 备份保留记忆：
+
+```bash
+# === 旧机导出 ===
+docker cp agentmemory-iii-engine-1:/app/data ./agentmemory-data-backup
+
+# === 新机导入 ===
+# 先按上面的步骤启动 Docker + worker，然后：
+docker cp ./agentmemory-data-backup/. agentmemory-iii-engine-1:/app/data/
+docker restart agentmemory-iii-engine-1
+# worker 不需要重启，它自动重连
+```
+
+备份目录通常很小（几十 MB），可以随 dotfiles 一起打包带走。
 
 ### 6. 启动 Gateway
 
@@ -115,3 +160,5 @@ git rebase main
 - `~/.hermes/state.db` — 会话历史
 - `~/.hermes/channel_directory.json` — WeChat/QQ 用户 openid
 - `~/.hermes/gateway_state.json` — Gateway 运行时 PID
+- agentmemory Docker 镜像 / npm 包 — 从 Docker Hub/npm 直接安装，无需 fork
+- agentmemory Docker volume（记忆数据） — 通过 `docker cp` 单独备份迁移
