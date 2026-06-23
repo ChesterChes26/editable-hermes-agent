@@ -41,7 +41,7 @@ curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
 mv ~/.hermes/hermes-agent ~/.hermes/hermes-agent.bak
 
 # Clone 本仓库
-git clone https://github.com/ChesterChes26/hermes-agent.git ~/.hermes/hermes-agent
+git clone https://github.com/ChesterChes26/editable-hermes-agent.git ~/.hermes/hermes-agent
 cd ~/.hermes/hermes-agent
 git checkout chester
 ```
