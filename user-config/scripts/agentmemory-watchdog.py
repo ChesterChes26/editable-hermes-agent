@@ -1,13 +1,13 @@
 """agentmemory worker watchdog — auto-restart if dead.
 
 Two-tier health check before any action:
-  1. Container: docker ps + TCP connect → restart if stuck/dead
+  1. Container: docker ps + HTTP GET -> restart if stuck/dead
   2. Worker:    smart-search endpoint → spawn if missing
 
 Container restart uses docker.exe (native binary, no cmd window).
 Worker spawn uses CREATE_NO_WINDOW (suppresses cmd flash on Windows).
 """
-import os, subprocess, sys, time, socket
+import os, subprocess, sys, time
 
 API_URL = os.environ.get("AGENTMEMORY_URL", "http://localhost:3111")
 SMART_SEARCH_URL = f"{API_URL}/agentmemory/smart-search"
@@ -31,13 +31,22 @@ def container_running():
         return False
 
 
-def tcp_reachable(host="127.0.0.1", port=3111, timeout=2):
-    """True if we can open a TCP connection."""
+
+def container_http_healthy(host="127.0.0.1", port=3111, timeout=5):
+    """True if the container responds to an HTTP request.
+
+    Goes beyond a bare TCP handshake — the iii-engine can accept
+    connections while its HTTP server is internally deadlocked.
+    Only a real HTTP round-trip catches that state.
+    """
+    from urllib.request import Request, urlopen
     try:
-        s = socket.create_connection((host, port), timeout=timeout)
-        s.close()
-        return True
-    except OSError:
+        # Use the root endpoint as a lightweight health check;
+        # any 2xx/3xx/4xx response means the HTTP layer is alive.
+        req = Request(f"http://{host}:{port}/", method="GET")
+        with urlopen(req, timeout=timeout) as r:
+            return r.status < 500
+    except Exception:
         return False
 
 
@@ -63,7 +72,7 @@ def restart_container():
     # Give container + worker time to come up
     for _ in range(10):
         time.sleep(2)
-        if tcp_reachable():
+        if container_http_healthy():
             time.sleep(2)  # extra grace for HTTP server init
             return True
     return False
@@ -89,7 +98,7 @@ if worker_alive():
 
 # Worker appears dead.  First determine if the container itself is the problem.
 container_ok = container_running()
-tcp_ok = tcp_reachable()
+http_ok = container_http_healthy()
 
 if not container_ok:
     print("[watchdog] Container missing — starting...")
@@ -101,7 +110,7 @@ if not container_ok:
     )
     for _ in range(10):
         time.sleep(2)
-        if tcp_reachable():
+        if container_http_healthy():
             time.sleep(2)
             spawn_worker()
             break
@@ -109,8 +118,8 @@ if not container_ok:
         print("[watchdog] Container did not start within 20s.")
     sys.exit(0)
 
-if container_ok and not tcp_ok:
-    print("[watchdog] Container TCP-stuck — restarting...")
+if container_ok and not http_ok:
+    print("[watchdog] Container HTTP-stuck — restarting...")
     if restart_container():
         print("[watchdog] Container restarted, checking worker...")
         # Worker should auto-reconnect after container restart.
@@ -130,8 +139,8 @@ if container_ok and not tcp_ok:
         sys.exit(1)
     sys.exit(0)
 
-# Container + TCP both OK, but worker not responding.  Worker-only restart.
-if container_ok and tcp_ok:
+# Container + HTTP both OK, but worker not responding.  Worker-only restart.
+if container_ok and http_ok:
     print("[watchdog] Worker down, starting...")
     spawn_worker()
     deadline = time.monotonic() + 30
