@@ -78,6 +78,14 @@ Keep summaries telegraphic. Index stays in built-in memory until it hits the 2,2
 
 New categories can be created at any time — the index is self-describing.
 
+## Explanation Style (when presenting wiki/technical content)
+
+When the user asks you to explain a wiki page, concept, or technical document:
+
+- **Default to plain conversational Chinese.** Do NOT lead with structured formal exposition (tables, bullet lists, code blocks, "核心问题/设计决策" headers). Start with a one-sentence summary in spoken Chinese, then flesh out with short paragraphs and everyday analogies.
+- **"说人话" is the baseline.** If the user says it, you already failed the first response. The second try should be dramatically more casual — short sentences, 口语, analogies (预制菜, 壳), no markdown tables, no formal section headers.
+- **Save the structure for follow-ups.** If the user then asks a deeper technical question, you can reintroduce structure. But the default opening explanation should sound like you're talking to a colleague over coffee, not presenting slides.
+
 ## Pitfalls
 
 1. **Forgetting to load**: the MEMORY INDEX is short and easily overlooked. Check it BEFORE every response.
@@ -86,6 +94,7 @@ New categories can be created at any time — the index is self-describing.
 4. **Index mismatch**: memory index.md and built-in memory index must stay in sync.
 5. **CLI sessions do NOT auto-load this skill**: `WEIXIN_AUTO_SKILL` and `QQBOT_AUTO_SKILL` inject wiki-memory for gateway platforms only. CLI sessions must explicitly load it via `hermes -s wiki-memory`.
 6. **No programmatic auto-load**: Hermes has NO code that parses MEMORY.md index lines and auto-reads memory files. Entire pipeline is LLM-driven.
+7. **"图谱" = textual explanation, not visual diagram or code simulation.** When the user asks for a "运行机制图谱" or "机制图" for a wiki concept, they want a structured plain-language writeup to drop into the wiki draft — NOT an SVG diagram, NOT an architecture-diagram HTML file, NOT a live code simulation. Deliver text. Use conversational Chinese with short paragraphs and analogies. ASCII art for flow is fine; external tools (browser, terminal simulations, architecture-diagram skill) are overkill and waste turns.
 
 ## Verification
 

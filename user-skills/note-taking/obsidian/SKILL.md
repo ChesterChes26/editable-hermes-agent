@@ -23,19 +23,16 @@ D:\obsidian\2026\
 │   ├── index.md
 │   ├── driving(行为)/
 │   └── technical(技术)/
-└── wiki/                      # LLM Wiki (general knowledge base)
-    ├── SCHEMA.md
-    ├── index.md
-    ├── log.md
-    ├── entities(实体)/
-    ├── concepts(概念)/
-    ├── comparisons(对比)/
-    ├── queries(问答)/
-    └── raw(源材料)/
-        ├── articles(文章)/
-        ├── papers(论文)/
-        ├── transcripts(记录)/
-        └── assets(素材)/
+├── wiki/                      # [DEPRECATED] 旧 wiki，不再新增内容
+├── wiki-next/                 # 当前活跃 wiki，所有新内容走 wiki-guide-split skill
+│   ├── SCHEMA.md
+│   ├── index.md
+│   ├── log.md
+│   ├── concepts(概念)/
+│   ├── comparisons(对比)/
+│   ├── entities(实体)/
+│   ├── queries(问答)/
+│   └── raw(源材料)/
 ```
 
 ## Folder Naming Convention (MANDATORY)
@@ -87,3 +84,23 @@ Use `patch` for focused note changes when the current content gives you stable c
 ## Wikilinks
 
 Obsidian links notes with `[[Note Name]]` syntax. When creating notes, use these to link related content.
+
+## Importing external documents
+
+### Plain Markdown documents → wiki (DEPRECATED)
+
+**Wiki 内容导入已迁移至 `wiki-guide-split` skill。** 不要再用此管线写入 `wiki/` 目录。所有新 wiki 文档通过 wiki-guide-split 走完整流程：Phase 0 生成 → Phase 1 约束密度判断 → Phase 2 拆或留 → review → 写入 `wiki-next/`。
+
+`references/wiki-import-markdown.md` 仅保留作为旧管线的技术记录，不再使用。
+
+### HTML documents → wiki (DEPRECATED)
+
+同上述——HTML 文档若要进 wiki，先转为 Markdown 后交给 wiki-guide-split。转换技术细节保留在 `references/html-to-markdown.md`。
+
+### Codebase → wiki coverage audit
+
+To systematically compare a codebase against existing wiki documentation and identify uncovered subsystems, see `references/codebase-wiki-audit.md`. Covers the full audit pipeline: build module inventory → read headers → map wiki coverage → cross-reference → tier classification → report output.
+
+## Reorganizing vault content (bulk moves + wikilinks)
+
+When bulk-moving files between vault directories and updating all cross-references, use `execute_code` with Python, not shell find/sed. See `references/wiki-reorg-wikilinks.md` for the three wikilink patterns to handle (bare links, normal pipes, escaped pipes in markdown tables), the two-pass strategy, and YAML frontmatter bare-path gotchas. Always run a final scan for remaining old links.

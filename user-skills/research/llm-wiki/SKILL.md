@@ -545,6 +545,24 @@ toward spoken language over formal prose.
 - **Handle contradictions explicitly** — don't silently overwrite. Note both claims with dates,
   mark in frontmatter, flag for user review.
 
+## Advanced: Guide / Reference Split (浅/深分离)
+
+For wikis where individual concept pages exceed ~150 lines and mix executable constraints
+with verification evidence, use the `wiki-guide-split` skill. It implements the full
+methodology: extract MUST/MUST NOT constraints from reference → add minimal causal chains
+→ anchor with one example → cross-verify. Target ~30% of original line count for guide pages.
+
+Layout uses **suffix pairing** in the same directory: `xxx.md` (guide) + `xxx.ref.md`
+(reference). The directory structure mirrors the parent wiki exactly (including T0-T3
+tiers). Construction order is always reference-first, then extract guide bottom-up.
+
+Batch migration: dispatch one subagent per document with the methodology embedded in
+context (leaf subagents cannot load skills). Always use full absolute paths.
+
+Load `skill_view(name='wiki-guide-split')` for the complete 4-step process, quality
+checklist, batch migration pattern, and pitfalls from production use. Do not apply
+to wikis under 50 pages or pages under 150 lines.
+
 ## Pitfalls
 
 - **Don't treat OKF or Rohit V2 as an upgrade path.** OKF is an exchange format (not a wiki engine),

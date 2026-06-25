@@ -117,7 +117,8 @@ Don't archive entries that are still actively needed just because the limit is t
 
 Why not modify `memory_tool.py` to remove the 2,200 char limit or proxy to Obsidian? See `references/memory-capacity-approaches.md` for the trade-off analysis. The short answer: zero-source-modification beats perpetual upgrade conflicts; 2,200 chars is enough for active working memory when stale entries are regularly pruned.
 
-## Obsidian Vault Path
+## File Locations
 
-Archive root: `D:\obsidian\2026\hermes-memory\`
-Create the directory if it doesn't exist.
+- **Source** (Hermes memory store): `~/AppData/Local/hermes/memories/MEMORY.md` + `USER.md`
+- **Archive log** (Obsidian): `D:\\obsidian\\2026\\hermes-memory\\{date}.md`
+- See `references/hermes-memory-file-locations.md` for the full relationship and common misconceptions.
