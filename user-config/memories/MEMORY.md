@@ -1,25 +1,29 @@
-patches: WeChat ITEM_NOTE(type8)+obsidian-sync auto-load | weixin.py; qqbot auto-load obsidian-sync
+fork: github/ChesterChes26/hermes-agent;origin→fork,upstream→NousResearch;src:weixin+qqbot+agent_init;plugins:agentmemory+skills;restore:clone+checkout chester+cp ~/.hermes/+env
 §
-wiki: D:/obsidian/2026/wiki/; YAML frontmatter+wikilinks; index.md/log.md per category; dirs: concepts(概念)/entities(实体)/comparisons(对比)/queries(问答)/raw(源材料); SCHEMA tags; new pages update index+log
+Obsidian:D:/obsidian/2026→github/ChesterChes26/obsidian-2026;old wiki废弃;wiki-next活跃(86文件:36对+14独立),约束密度定拆否;git push after edits
 §
-vault: D:/obsidian/2026→github.com/ChesterChes26/obsidian-2026 (leon88726@hotmail.com); .gitignore: .obsidian/ .trash/; post-edit: git add -A && git commit -m "..." && git push
+A2A:A(:8642,WeChat/QQ),B(:8643推理);[CALLER:a/b/c]前缀,B仅认a/c;C远程需反向代理硬认证;A↔B异步;API_SERVER_KEY per-profile
 §
-wiki风格: 口语化中文, 标题用问句/隐喻, 先动机后机制, 末句总结; 保留技术细节换包装. in llm-wiki skill
-§
-A2A: default(A,:8642,WeChat/QQ入口)+worker(B,:8643,纯推理); A curl B→B curl A异步链; API_SERVER_KEY per-profile; Gateway与CLI独立进程; B=127.0.0.1外部不可达
-§
-A2A caller: [CALLER: hermes-a/b/c] msg prefix软约定; B仅认a/c; 127.0.0.1故外部不可达; C远程需反向代理硬认证(per-caller key/IP/TLS)
-§
-network: corp DNS blocks Google; Bing OK(limited CN results); GitHub API works; DDG often empty; VPN→SSL unstable; Google搜索多路径或请用户分享URL
-§
-agentmemory: Docker(:3111), DeepSeek flash, 本地embed. 恢复: docker restart→/new(init→session/start); sync_turn自愈. Gateway /new靠init重build. 吞错链: run_agent:3085(except:pass×2)+memory_manager:591(debug不落盘)+__init__:168(return None)+daemon. 排查搜except:pass+return None. /new竞态已修复: flush→end→clear→start.
+agentmemory:Docker:3111,DeepSeek flash;/new竞态:flush→end→clear→start;吞错3处(L3085/591/168);diag查state.db;watchdog:HTTP hung→docker restart
 §
 教训: compact-memory执行前必须skill_view加载, 凭记忆做漏了Phase顺序+日志格式. 任何skill相关操作先加载再执行.
 §
-plugin diag pitfall: logger需要import logging+getLogger否则NameError; on_session_switch exception→logger.debug(不落盘) vs initialize_all→logger.warning(落盘). plugin logger不传播到root handler→DIAG不可见; 用state.db验证.
+plugin update:git pull --ff-only,无.git→报错;agentmemory非git→安全失败;需git init+upstream恢复升级
 §
-state.db验证法: system_prompt查<memory-context>(true tag, memory_manager.py:157), 非<agentmemory-context>(用户笔记误报). DIAG日志不可靠→plugin logger不传播.
+agentmemory watchdog:iii-engine TCP ok但HTTP hung,原tcp_reachable误判→npx弹窗。fix:container_http_healthy()+四层诊断,hung→docker restart
 §
-_memory_manager=None第4路径: agent_init.py:1145 strip() check失败→全段跳过→无日志. mem_config无provider或空值时触发. sync_turn自愈前提: _memory_manager已有provider注册.
+ACP(JSON-RPC/stdio)=协议,MCP=协议,A2A(HTTP+[CALLER]前缀)=通信模式。ACP工具调agent,MCP agent调工具,A2A agent委托agent。可交叉
 §
-agentmemory /new fix (2026-06-23): sync_turn tracks observe daemon threads in _pending_observes set. on_session_end+on_session_switch(reset=True) call _flush_observes() before session/end. reset path: flush→session/end(parent)→clear→session/start(new). daemon try/finally ensures discard. observe still async. ref: agentmemory-hermes/references/new-session-no-reinit.md updated.
+GitHub: curl/browser→github.* triggers firewall alert, never use. git via proxy 127.0.0.1:7897 safe
+§
+subagent审查:用户不信任盲信结果;批量审查需独立agent做review;逐条追问判断逻辑→不接受单agent结论
+§
+wiki入口:wiki-guide-split v2.0(唯一);obsidian导入已废弃。流程:Phase0底板→Phase1密度→Phase2a拆分或2b单文件→写入管线(index/log/git)。target:wiki-next/
+§
+wiki拆分:subagent派发前逐篇读内容做密度判断(非看frontmatter);3 subagent并行各5篇走Phase0→2a;完事后逐对review六段/交叉链接/认知减负比
+§
+wiki-guide-split纪律:即使预判Phase2b(不拆)也必须先Phase0落底板再正式判断。禁止跳Phase0直接写带frontmatter/wikilink/章节结构的成品。底板是纯叙事,不做约束提取。
+§
+WeChat MP articles: JS-rendered, curl只拿壳。browser_navigate带?scene=等query params可能UTF-8解码失败→去掉params用clean URL即可。全文提取最优: browser_console执行document.querySelector('#js_content').innerText，比snapshot逐段滚动完整且快。
+§
+hermes skills+plugins sync: git跟踪user-skills/≠运行时skills/; user-plugins/≠plugins/(同构风险)。skill_manage/curator改→落runtime目录; git只看user-*目录→报clean。commit前diff两目录: diff -rq skills/<name>/ hermes-agent/user-skills/<name>/ (plugins同理)。rsync不可用用cp -r。push经代理http://127.0.0.1:7897。
