@@ -655,6 +655,7 @@ platform_toolsets:
 plugins:
   enabled:
   - agentmemory
+  - horizon
 known_plugin_toolsets:
   cli:
   - spotify
@@ -672,3 +673,4 @@ mcp_servers:
     args:
     - -y
     - '@agentmemory/mcp'
+
