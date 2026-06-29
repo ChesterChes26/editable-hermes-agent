@@ -1,0 +1,18 @@
+name: horizon
+version: "1.0.0"
+description: "Horizon data pipeline tools - fetch, score, filter, enrich, summarize"
+kind: standalone
+provides_tools:
+  - hz_validate_config
+  - hz_fetch_items
+  - hz_score_items
+  - hz_filter_items
+  - hz_enrich_items
+  - hz_generate_summary
+  - hz_run_pipeline
+  - hz_list_runs
+  - hz_get_run_meta
+  - hz_get_run_stage
+  - hz_get_run_summary
+  - hz_get_metrics
+  - hz_send_webhook
