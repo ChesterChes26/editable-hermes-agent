@@ -40,12 +40,18 @@ def container_http_healthy(host="127.0.0.1", port=3111, timeout=5):
     Only a real HTTP round-trip catches that state.
     """
     from urllib.request import Request, urlopen
+    from urllib.error import HTTPError
     try:
         # Use the root endpoint as a lightweight health check;
         # any 2xx/3xx/4xx response means the HTTP layer is alive.
+        # IMPORTANT: urlopen raises HTTPError on non-2xx, so catch
+        # it separately and check status < 500 (404 from iii-engine
+        # is perfectly healthy — no root route but HTTP layer alive).
         req = Request(f"http://{host}:{port}/", method="GET")
         with urlopen(req, timeout=timeout) as r:
             return r.status < 500
+    except HTTPError as e:
+        return e.code < 500
     except Exception:
         return False
 

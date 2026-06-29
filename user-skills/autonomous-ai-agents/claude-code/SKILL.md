@@ -761,6 +761,7 @@ Use `/context` in interactive mode to see a colored grid of context usage. Key t
 10. **Slash commands (like `/commit`) only work in interactive mode** — in `-p` mode, describe the task in natural language instead.
 11. **`--bare` skips OAuth** — requires `ANTHROPIC_API_KEY` env var or an `apiKeyHelper` in settings.
 12. **Context degradation is real** — AI output quality measurably degrades above 70% context window usage. Monitor with `/context` and proactively `/compact`.
+13. **Review Claude's output for concurrency bugs before deploying** — Claude may use `threading.Lock` where reentrant access is needed (e.g., retry paths that call helper functions that also acquire the same lock → deadlock). Always review for `Lock` → `RLock` scenarios in subprocess management code with recovery/retry logic. See `references/hermes-plugin-over-mcp.md` for a concrete example.
 
 ## Rules for Hermes Agents
 
@@ -774,3 +775,4 @@ Use `/context` in interactive mode to see a colored grid of context usage. Key t
 8. **Report results to user** — after completion, summarize what Claude did and what changed
 9. **Don't kill slow sessions** — Claude may be doing multi-step work; check progress instead
 10. **Use `--allowedTools`** — restrict capabilities to what the task actually needs
+11. **Review Claude's output before deploying** — especially for concurrency (Lock vs RLock), missing error paths, and incorrect assumptions about library APIs. Claude's code is usually well-structured but may miss subtle correctness issues. See `references/hermes-plugin-over-mcp.md` for a worked example.
