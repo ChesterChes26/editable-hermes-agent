@@ -232,33 +232,22 @@ class AgentMemoryProvider(MemoryProvider):
         config_path.write_text(json.dumps(values, indent=2))
 
     def system_prompt_block(self) -> str:
-        result = _api(self._base, "context", {
-            "sessionId": self._session_id,
-            "project": self._project,
-        })
-        if result and result.get("context"):
-            return result["context"]
+        # Health-only: signal if agentmemory is unreachable.
+        # No context injection — "只存不取" mode.
+        # Uses sessions endpoint (lightweight GET) rather than smart-search
+        # to avoid exercising the search index unnecessarily.
+        if not _api(self._base, "sessions", method="GET"):
+            return 'status="UNAVAILABLE" agentmemory not reachable'
         return ""
 
     def prefetch(self, query: str, **kwargs: Any) -> str:
-        result = _api(self._base, "smart-search", {
-            "query": query,
-            "limit": 5,
-        })
-        if not result or not result.get("results"):
-            return ""
-
-        lines = []
-        for r in result["results"][:5]:
-            obs = r.get("observation", r)
-            title = obs.get("title", "")
-            narrative = obs.get("narrative", "")
-            if title:
-                lines.append(f"- {title}: {narrative[:200]}")
-        return "\n".join(lines) if lines else ""
+        # Disabled: "只存不取" mode — no auto-injection of memories.
+        # sync_turn still records, tools still search manually.
+        return ""
 
     def queue_prefetch(self, query: str, **kwargs: Any) -> None:
-        _api_bg(self._base, "smart-search", {"query": query, "limit": 3})
+        # Disabled: no background prefetch in "只存不取" mode.
+        return
 
     def get_tool_schemas(self) -> list[dict]:
         return [
@@ -470,15 +459,8 @@ class AgentMemoryProvider(MemoryProvider):
                        self._base, new_session_id, result)
 
     def on_pre_compress(self, messages: list, **kwargs: Any) -> None:
-        result = _api(self._base, "context", {
-            "sessionId": kwargs.get("session_id", self._session_id),
-            "project": self._project,
-        })
-        if result and result.get("context"):
-            messages.insert(0, {
-                "role": "user",
-                "content": f"[agentmemory context before compaction]\n{result['context']}",
-            })
+        # Disabled: "只存不取" mode — don't inject context before compression.
+        return
 
     def on_memory_write(self, action: str, target: str, content: str, **kwargs: Any) -> None:
         if action in ("add", "update") and content:
