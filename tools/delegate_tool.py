@@ -1069,6 +1069,20 @@ def _build_child_agent(
         # toolset names (e.g. web, terminal) are recognised during intersection.
         expanded_parent = _expand_parent_toolsets(parent_toolsets)
         child_toolsets = [t for t in toolsets if t in expanded_parent]
+        # Recover plugin-registered toolsets dropped by the static-TOOLSETS intersection.
+        # Plugin toolsets (e.g. 'horizon') live in the registry, not in TOOLSETS,
+        # so _expand_parent_toolsets cannot see them. Include any plugin toolset
+        # whose tools are already loaded in the parent agent.
+        for t in toolsets:
+            if t not in child_toolsets:
+                try:
+                    from tools.registry import registry
+                    ts_tools = registry.get_tool_names_for_toolset(t)
+                    if ts_tools and parent_agent and hasattr(parent_agent, "valid_tool_names"):
+                        if set(ts_tools).issubset(parent_agent.valid_tool_names):
+                            child_toolsets.append(t)
+                except Exception:
+                    pass
         if _get_inherit_mcp_toolsets():
             child_toolsets = _preserve_parent_mcp_toolsets(
                 child_toolsets, parent_toolsets
