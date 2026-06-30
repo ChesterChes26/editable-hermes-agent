@@ -1,10 +1,10 @@
 ---
 name: hermes-a2a
-description: "Hermes-to-Hermes communication: API Server, webhooks, shared platforms, terminal spawn, MCP."
+description: "Hermes-to-Hermes communication: API Server, webhooks, shared platforms, terminal spawn, MCP. Includes ACP/MCP/A2A protocol positioning comparison."
 platforms: [linux, macos, windows]
 metadata:
   hermes:
-    tags: [hermes, a2a, multi-agent, interop, api-server, webhooks, messaging]
+    tags: [hermes, a2a, multi-agent, interop, api-server, webhooks, messaging, acp, mcp, protocol-comparison]
 ---
 
 # Hermes A2A (Agent-to-Agent Communication)
@@ -128,6 +128,32 @@ hermes mcp add remote-hermes --url http://localhost:8742
 ```
 
 Use MCP when an external agent needs to operate Hermes's messaging channels (read chat history, send notifications to users). Not for Hermes-to-Hermes dialogue.
+
+## Protocol Positioning: ACP vs MCP vs A2A
+
+三条协议解决三个不同层的问题，一句话分清：
+
+| 协议 | 方向 | 句式 |
+|------|------|------|
+| **ACP** (Agent Client Protocol) | 工具 → agent | 编辑器说「干活」，Hermes 干 |
+| **MCP** (Model Context Protocol) | agent → 工具 | Hermes 说「读文件」，工具读 |
+| **A2A** (Agent-to-Agent) | agent → agent | Hermes-A 说「你帮我推理」，Hermes-B 干 |
+
+### ACP vs A2A
+
+两者形式都是 A-A（agent 对 agent）通信。区别在**对端的厚度**：
+- **ACP 的编辑器端**：thin client — 没模型、不推理、无工具，只转发用户输入 + 展示进度
+- **A2A 的对端**：full agent — 独立 LLM、agent loop、工具集，能自主完成复杂任务
+
+如果编辑器也内置 LLM，ACP 就会收敛到跟 A2A 一样的形态（full agent ↔ full agent）。当前区别是实现阶段差异而非协议本质鸿沟。
+
+### 三协议在 Hermes 中的位置
+
+| 协议 | Hermes CLI | 说明 |
+|------|-----------|------|
+| ACP | `hermes acp` | ACP Server，接 Zed / VS Code / JetBrains |
+| MCP | `hermes mcp serve` | MCP Server，给编辑器 LLM 当工具，或暴露 messaging channel 管理 |
+| A2A | API Server (:8642) + `[CALLER:]` 前缀 | 无标准协议，HTTP REST + 约定前缀，agent 间委托 |
 
 ## Decision Table
 

@@ -74,3 +74,4 @@ After fetching the transcript, format it based on what the user asks for:
 - **Private/unavailable video**: relay the error and ask the user to verify the URL.
 - **No matching language**: retry without `--language` to fetch any available transcript, then note the actual language to the user.
 - **Dependency missing**: run `uv pip install youtube-transcript-api` and retry.
+- **Transcript API fails silently**: the `youtube-transcript-api` can return empty or exit code 49 due to network/proxy issues. Fall back to `yt-dlp` — see `references/yt-dlp-fallback.md` for full commands and VTT parsing approach.

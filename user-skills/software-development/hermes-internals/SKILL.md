@@ -31,8 +31,10 @@ When Hermes exhibits a behavior and you need to determine whether it's driven by
 | `agent/prompt_builder.py` | System prompt blocks — behavioral constraints injected into every session |
 | `agent/conversation_loop.py` | Core agent loop — LLM call → tool dispatch → final response |
 | `run_agent.py` | Agent class, tool dispatch to handlers |
+| `hermes_cli/plugins.py` | Plugin discovery, loading, `PluginContext.register_tool()` — plugin tool path is synchronous, MCP path is async; see `references/plugin-tool-registration.md` |
+| `model_tools.py` | Tool schema aggregation — line 199 `discover_plugins()` sync-loads all plugins; line 254 `_generation` cache invalidation on register |
 | `tools/approval.py` | Dangerous command detection & approval — two-tier (HARDLINE + DANGEROUS), three-mode (manual/smart/off), smart approval via auxiliary LLM, gateway blocking queue, permanent allowlist |
-| `tools/terminal_tool.py` | Terminal tool handler — calls `check_all_command_guards()` before every command |
+| `tools/delegate_tool.py` | Subagent delegation — toolset intersection, `_expand_parent_toolsets`, plugin toolset recovery (see `references/delegate-plugin-toolset-recovery.md`) |
 | `toolsets.py` | Which tools are available per session |
 | `hermes_cli/config.py` | Default config values |
 | `model_tools.py` | Tool schema definitions |
@@ -44,10 +46,28 @@ When Hermes exhibits a behavior and you need to determine whether it's driven by
 | `agent/context_compressor.py` | Context compression — `ContextCompressor`: 5-step lossy summarization with anti-thrashing, cooldown, fallback |
 | `agent/conversation_compression.py` | Compression orchestrator — `compress_context()`: lock acquisition, session rotation, memory provider notification |
 | `plugins/memory/__init__.py` | Memory plugin discovery + loading |
+| `gateway/response_filters.py` | Intentional silence — `is_intentional_silence_agent_result()`: 4-marker whitelist, 64-char cap, failed-agent bypass; decision at gateway boundary (LLM intent + program enforcement) |
+| `gateway/delivery.py` | Delivery routing + silence narration — `_is_silence_narration()`: regex-based detection of narrative "silent"/"no reply" phrasings distinct from the exact-marker path in response_filters |
+| `gateway/run.py` | Gateway main loop — `agent_result.get("final_response")` at line 9621 feeds the filter; intentional silence suppressed at delivery (line 10012) but preserved in transcript (line 10007 comment) |
+| `trajectory_compressor.py` | Offline RL training data preprocessing — compresses middle turns via LLM summarization while protecting head and tail. Provider chain: OpenRouter → google/gemini-3-flash-preview (default); see `references/trajectory-compressor-provider.md` |
 
 For the full memory subsystem architecture (dual built-in + external design, file locking,
 drift detection, injection scanning, background sync, and initialization flow),
 see `references/memory-architecture.md`.
+
+For the response filter architecture — how `response_filters.py` decides
+intentional silence at the gateway boundary, the two-layer LLM-intent +
+program-enforcement design, the four-marker whitelist with 64-char cap and
+failed-agent bypass, the cron/feishu explicit-instruction paths vs the main
+chat silent-capability path, and the separate `_is_silence_narration` regex
+path in `delivery.py` — see `references/response-filter-architecture.md`.
+
+For the Background Review fork architecture — how the per-turn self-review spawns
+a daemon-thread ``AIAgent`` that shares the parent's ``_memory_store`` object
+(same Python ref, not a copy), inherits the cached system prompt for prefix-cache
+parity, skips external memory providers via ``skip_memory=True``, and runs with a
+tool whitelist limited to memory/skill management — see
+`references/background-review-fork-architecture.md`.
 
 For the per-turn memory injection path and its interaction with context files —
 including the unbounded `system_prompt_block()` problem, `<memory-context>` fencing,
@@ -112,11 +132,16 @@ with threading.Event, permanent allowlist persistence, and the
 check_all_command_guards/tirith combined guard — see
 `references/dangerous-command-approval.md`.
 
+For the trajectory compressor's LLM provider chain — default model, provider
+detection, call_llm vs raw client paths, and failure modes (hard RuntimeError
+at init, 3-retry jittered backoff at per-summary level) — see
+`references/trajectory-compressor-provider.md`.
+
 ## Key Branch Points
 
 ### The only decision in the agent loop
 
-`agent/conversation_loop.py` line 3675 / 4007:
+`agent/conversation_loop.py` line 3812:
 
 ```python
 if assistant_message.tool_calls:
