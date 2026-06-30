@@ -101,6 +101,10 @@ Obsidian links notes with `[[Note Name]]` syntax. When creating notes, use these
 
 To systematically compare a codebase against existing wiki documentation and identify uncovered subsystems, see `references/codebase-wiki-audit.md`. Covers the full audit pipeline: build module inventory → read headers → map wiki coverage → cross-reference → tier classification → report output.
 
+## Translating structured notes to another language
+
+When asked to produce a translated copy of a structured markdown note (bilingual reports, TOC with anchors, collapsible sections, scores, tags), see `references/translate-markdown-notes.md` for the full workflow: chunked reading, structure-preservation checklist, section header translations, and a verifier script pattern to cross-check source-vs-target completeness.
+
 ## Reorganizing vault content (bulk moves + wikilinks)
 
 When bulk-moving files between vault directories and updating all cross-references, use `execute_code` with Python, not shell find/sed. See `references/wiki-reorg-wikilinks.md` for the three wikilink patterns to handle (bare links, normal pipes, escaped pipes in markdown tables), the two-pass strategy, and YAML frontmatter bare-path gotchas. Always run a final scan for remaining old links.

@@ -248,6 +248,15 @@ pytest tests/test_module.py::test_regression -v
 pytest tests/ -q
 ```
 
+**MANDATORY for non-testable code changes (scripts, configs, watchdogs):** Before claiming a fix is done, trace EVERY execution path through the modified code with actual runtime data. Do not say "should work" — prove it works.
+
+- List all branches in the modified logic
+- For each branch, confirm with a real test (curl, actual invocation, log check) what happens
+- Present the path coverage as a table or checklist
+- If a path can't be tested (edge condition), mark it explicitly with the reason
+
+**Red flag:** "看起来对" / "should work" / untested claims → STOP. Verify first, then claim done. User has corrected this pattern: "你确定改对了？安全吗？"
+
 ### 4. If Fix Doesn't Work — The Rule of Three
 
 - **STOP.**
