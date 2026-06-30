@@ -1,13 +1,13 @@
 model:
+  base_url: https://api.deepseek.com
   default: deepseek-v4-pro
   provider: deepseek
-  base_url: https://api.deepseek.com
 providers: {}
 fallback_providers: []
 credential_pool_strategies: {}
 toolsets:
-- hermes-cli
-max_concurrent_sessions: null
+  - hermes-cli
+max_concurrent_sessions:
 agent:
   max_turns: 150
   gateway_timeout: 1800
@@ -16,59 +16,64 @@ agent:
   service_tier: ''
   tool_use_enforcement: auto
   task_completion_guidance: true
+  parallel_tool_call_guidance: true
   environment_probe: true
   environment_hint: ''
   coding_context: auto
+  verify_on_stop: true
   gateway_timeout_warning: 900
   clarify_timeout: 600
   gateway_notify_interval: 180
   gateway_auto_continue_freshness: 60
   image_input_mode: auto
   disabled_toolsets: []
-  verbose: false
-  reasoning_effort: medium
   personalities:
-    helpful: You are a helpful, friendly AI assistant.
+    catgirl: You are Neko-chan, an anime catgirl AI assistant, nya~! Add 'nya' 
+      and cat-like expressions to your speech. Use kaomoji like (=^･ω･^=) and 
+      ฅ^•ﻌ•^ฅ. Be playful and curious like a cat, nya~!
     concise: You are a concise assistant. Keep responses brief and to the point.
-    technical: You are a technical expert. Provide detailed, accurate technical information.
-    creative: You are a creative assistant. Think outside the box and offer innovative
-      solutions.
-    teacher: You are a patient teacher. Explain concepts clearly with examples.
-    kawaii: You are a kawaii assistant! Use cute expressions like (◕‿◕), ★, ♪, and
-      ~! Add sparkles and be super enthusiastic about everything! Every response should
-      feel warm and adorable desu~! ヽ(>∀<☆)ノ
-    catgirl: You are Neko-chan, an anime catgirl AI assistant, nya~! Add 'nya' and
-      cat-like expressions to your speech. Use kaomoji like (=^･ω･^=) and ฅ^•ﻌ•^ฅ.
-      Be playful and curious like a cat, nya~!
+    creative: You are a creative assistant. Think outside the box and offer 
+      innovative solutions.
+    helpful: You are a helpful, friendly AI assistant.
+    hype: YOOO LET'S GOOOO!!! 🔥🔥🔥 I am SO PUMPED to help you today! Every 
+      question is AMAZING and we're gonna CRUSH IT together! This is gonna be 
+      LEGENDARY! ARE YOU READY?! LET'S DO THIS! 💪😤🚀
+    kawaii: You are a kawaii assistant! Use cute expressions like (◕‿◕), ★, ♪, 
+      and ~! Add sparkles and be super enthusiastic about everything! Every 
+      response should feel warm and adorable desu~! ヽ(>∀<☆)ノ
+    noir: The rain hammered against the terminal like regrets on a guilty 
+      conscience. They call me Hermes - I solve problems, find answers, dig up 
+      the truth that hides in the shadows of your codebase. In this city of 
+      silicon and secrets, everyone's got something to hide. What's your story, 
+      pal?
+    philosopher: Greetings, seeker of wisdom. I am an assistant who contemplates
+      the deeper meaning behind every query. Let us examine not just the 'how' 
+      but the 'why' of your questions. Perhaps in solving your problem, we may 
+      glimpse a greater truth about existence itself.
     pirate: 'Arrr! Ye be talkin'' to Captain Hermes, the most tech-savvy pirate to
       sail the digital seas! Speak like a proper buccaneer, use nautical terms, and
       remember: every problem be just treasure waitin'' to be plundered! Yo ho ho!'
-    shakespeare: Hark! Thou speakest with an assistant most versed in the bardic arts.
-      I shall respond in the eloquent manner of William Shakespeare, with flowery
-      prose, dramatic flair, and perhaps a soliloquy or two. What light through yonder
-      terminal breaks?
-    surfer: Duuude! You're chatting with the chillest AI on the web, bro! Everything's
-      gonna be totally rad. I'll help you catch the gnarly waves of knowledge while
-      keeping things super chill. Cowabunga! 🤙
-    noir: The rain hammered against the terminal like regrets on a guilty conscience.
-      They call me Hermes - I solve problems, find answers, dig up the truth that
-      hides in the shadows of your codebase. In this city of silicon and secrets,
-      everyone's got something to hide. What's your story, pal?
-    uwu: hewwo! i'm your fwiendwy assistant uwu~ i wiww twy my best to hewp you! *nuzzles
-      your code* OwO what's this? wet me take a wook! i pwomise to be vewy hewpful
-      >w<
-    philosopher: Greetings, seeker of wisdom. I am an assistant who contemplates the
-      deeper meaning behind every query. Let us examine not just the 'how' but the
-      'why' of your questions. Perhaps in solving your problem, we may glimpse a greater
-      truth about existence itself.
-    hype: YOOO LET'S GOOOO!!! 🔥🔥🔥 I am SO PUMPED to help you today! Every question
-      is AMAZING and we're gonna CRUSH IT together! This is gonna be LEGENDARY! ARE
-      YOU READY?! LET'S DO THIS! 💪😤🚀
+    shakespeare: Hark! Thou speakest with an assistant most versed in the bardic
+      arts. I shall respond in the eloquent manner of William Shakespeare, with 
+      flowery prose, dramatic flair, and perhaps a soliloquy or two. What light 
+      through yonder terminal breaks?
+    surfer: Duuude! You're chatting with the chillest AI on the web, bro! 
+      Everything's gonna be totally rad. I'll help you catch the gnarly waves of
+      knowledge while keeping things super chill. Cowabunga! 🤙
+    teacher: You are a patient teacher. Explain concepts clearly with examples.
+    technical: You are a technical expert. Provide detailed, accurate technical 
+      information.
+    uwu: hewwo! i'm your fwiendwy assistant uwu~ i wiww twy my best to hewp you!
+      *nuzzles your code* OwO what's this? wet me take a wook! i pwomise to be 
+      vewy hewpful >w<
+  reasoning_effort: medium
+  verbose: false
 terminal:
   backend: local
   modal_mode: auto
   cwd: .
   timeout: 180
+  daemon_term_grace_seconds: 2.0
   env_passthrough: []
   home_mode: auto
   shell_init_files: []
@@ -122,7 +127,9 @@ checkpoints:
   retention_days: 7
   delete_orphans: true
   min_interval_hours: 24
+context_file_max_chars:
 file_read_max_chars: 100000
+mcp_discovery_timeout: 1.5
 tool_output:
   max_bytes: 50000
   max_lines: 2000
@@ -147,6 +154,19 @@ compression:
   protect_first_n: 3
   abort_on_summary_failure: false
   codex_gpt55_autoraise: true
+  in_place: false
+kanban:
+  dispatch_in_gateway: true
+  dispatch_interval_seconds: 60
+  failure_limit: 2
+  worker_log_rotate_bytes: 2097152
+  worker_log_backup_count: 1
+  orchestrator_profile: ''
+  default_assignee: ''
+  max_in_progress_per_profile:
+  auto_decompose: true
+  auto_decompose_per_tick: 3
+  dispatch_stale_timeout_seconds: 14400
 prompt_caching:
   cache_ttl: 5m
 openrouter:
@@ -215,6 +235,7 @@ auxiliary:
     api_key: ''
     timeout: 30
     extra_body: {}
+    language: ''
   tts_audio_tags:
     provider: auto
     model: ''
@@ -257,6 +278,13 @@ auxiliary:
     api_key: ''
     timeout: 60
     extra_body: {}
+  background_review:
+    provider: auto
+    model: ''
+    base_url: ''
+    api_key: ''
+    timeout: 120
+    extra_body: {}
 display:
   compact: false
   personality: ''
@@ -272,6 +300,8 @@ display:
   tui_agents_nudge: true
   bell_on_complete: false
   show_reasoning: false
+  reasoning_full: false
+  memory_notifications: 'on'
   streaming: true
   timestamps: false
   final_response_markdown: strip
@@ -286,6 +316,7 @@ display:
   skin: default
   language: zh
   tui_status_indicator: kaomoji
+  cli_refresh_interval: 1.0
   user_message_preview:
     first_lines: 2
     last_lines: 2
@@ -293,6 +324,8 @@ display:
   tool_progress_command: false
   tool_progress_overrides: {}
   tool_preview_length: 0
+  tool_progress_grouping: accumulate
+  reasoning_style: code
   ephemeral_system_ttl: 0
   platforms:
     telegram:
@@ -302,15 +335,21 @@ display:
   runtime_footer:
     enabled: false
     fields:
-    - model
-    - context_pct
-    - cwd
+      - model
+      - context_pct
+      - cwd
   copy_shortcut: auto
-  tool_progress: all
+  pet:
+    enabled: false
+    slug: ''
+    render_mode: auto
+    scale: 0.33
+    unicode_cols: 0
+  background_process_notifications: all
+  busy_ack_detail: true
   cleanup_progress: false
   long_running_notifications: true
-  busy_ack_detail: true
-  background_process_notifications: all
+  tool_progress: all
 dashboard:
   theme: default
   show_token_analytics: false
@@ -392,8 +431,8 @@ memory:
   memory_char_limit: 2200
   user_char_limit: 1375
   provider: agentmemory
-  nudge_interval: 10
   flush_min_turns: 6
+  nudge_interval: 10
 delegation:
   model: ''
   provider: ''
@@ -426,6 +465,7 @@ curator:
   min_idle_hours: 2
   stale_after_days: 30
   archive_after_days: 90
+  consolidate: false
   prune_builtins: true
   backup:
     enabled: true
@@ -460,11 +500,11 @@ discord:
     speech_gain: 1
     ack_enabled: true
     ack_phrases:
-    - Let me look into that.
-    - One moment.
-    - Checking on that now.
-    - Give me a sec.
-    - On it.
+      - Let me look into that.
+      - One moment.
+      - Checking on that now.
+      - Give me a sec.
+      - On it.
 whatsapp: {}
 telegram:
   reactions: false
@@ -472,6 +512,7 @@ telegram:
   allowed_chats: ''
   extra:
     rich_messages: false
+    rich_drafts: false
 mattermost:
   require_mention: true
   free_response_channels: ''
@@ -488,8 +529,9 @@ approvals:
   mcp_reload_confirm: true
   destructive_slash_confirm: false
 command_allowlist:
-- stop/restart hermes gateway (kills running agents)
+  - stop/restart hermes gateway (kills running agents)
 quick_commands: {}
+platform_hints: {}
 hooks: {}
 hooks_auto_accept: false
 personalities: {}
@@ -507,24 +549,19 @@ security:
   acked_advisories: []
   allow_lazy_installs: true
 cron:
+  provider: ''
+  chronos:
+    portal_url: https://portal.nousresearch.com
+    callback_url: ''
+    expected_audience: ''
+    nas_jwks_url: ''
   wrap_response: true
-  max_parallel_jobs: null
-kanban:
-  dispatch_in_gateway: true
-  dispatch_interval_seconds: 60
-  failure_limit: 2
-  worker_log_rotate_bytes: 2097152
-  worker_log_backup_count: 1
-  orchestrator_profile: ''
-  default_assignee: ''
-  max_in_progress_per_profile: null
-  auto_decompose: true
-  auto_decompose_per_tick: 3
-  dispatch_stale_timeout_seconds: 14400
+  mirror_delivery: false
+  max_parallel_jobs:
 code_execution:
   mode: project
-  timeout: 300
   max_tool_calls: 50
+  timeout: 300
 tools:
   tool_search:
     enabled: auto
@@ -543,10 +580,17 @@ model_catalog:
 network:
   force_ipv4: false
 gateway:
+  scale_to_zero:
+    idle_timeout_minutes: 5
+  message_timestamps:
+    enabled: false
+  max_inbound_media_bytes: 134217728
   strict: false
   media_delivery_allow_dirs: []
   trust_recent_files: true
   trust_recent_files_seconds: 600
+  api_server:
+    max_concurrent_runs: 10
 streaming:
   enabled: false
   transport: auto
@@ -591,86 +635,91 @@ secrets:
 paste_collapse_threshold: 5
 paste_collapse_threshold_fallback: 5
 paste_collapse_char_threshold: 2000
+computer_use:
+  cua_telemetry: false
 _config_version: 29
-session_reset:
-  mode: none
-  idle_minutes: 1440
-  at_hour: 4
 group_sessions_per_user: true
-platform_toolsets:
-  cli:
-  - browser
-  - clarify
-  - code_execution
-  - computer_use
-  - cronjob
-  - delegation
-  - file
-  - image_gen
-  - memory
-  - messaging
-  - session_search
-  - skills
-  - terminal
-  - todo
-  - tts
-  - vision
-  - web
-  telegram:
-  - hermes-telegram
-  discord:
-  - hermes-discord
-  whatsapp:
-  - hermes-whatsapp
-  slack:
-  - hermes-slack
-  signal:
-  - hermes-signal
-  homeassistant:
-  - hermes-homeassistant
-  qqbot:
-  - browser
-  - clarify
-  - code_execution
-  - computer_use
-  - cronjob
-  - delegation
-  - file
-  - image_gen
-  - memory
-  - messaging
-  - session_search
-  - skills
-  - terminal
-  - todo
-  - tts
-  - vision
-  - web
-  yuanbao:
-  - hermes-yuanbao
-  teams:
-  - hermes-teams
-  google_chat:
-  - hermes-google_chat
-plugins:
-  enabled:
-  - agentmemory
-  - horizon
 known_plugin_toolsets:
   cli:
-  - spotify
+    - horizon
+    - spotify
   qqbot:
-  - spotify
+    - spotify
+mcp_servers:
+  agentmemory:
+    args:
+      - -y
+      - '@agentmemory/mcp'
+    command: npx
+  cua-driver:
+    command: 
+      C:\Users\chester.chen\AppData\Local\Programs\Cua\cua-driver\bin\cua-driver.exe
+    args[0]: mcp
+platform_toolsets:
+  cli:
+    - browser
+    - clarify
+    - code_execution
+    - computer_use
+    - cronjob
+    - delegation
+    - file
+    - horizon
+    - image_gen
+    - memory
+    - session_search
+    - skills
+    - terminal
+    - todo
+    - tts
+    - vision
+    - web
+  discord:
+    - hermes-discord
+  google_chat:
+    - hermes-google_chat
+  homeassistant:
+    - hermes-homeassistant
+  qqbot:
+    - browser
+    - clarify
+    - code_execution
+    - computer_use
+    - cronjob
+    - delegation
+    - file
+    - image_gen
+    - memory
+    - session_search
+    - skills
+    - terminal
+    - todo
+    - tts
+    - vision
+    - web
+  signal:
+    - hermes-signal
+  slack:
+    - hermes-slack
+  teams:
+    - hermes-teams
+  telegram:
+    - hermes-telegram
+  whatsapp:
+    - hermes-whatsapp
+  yuanbao:
+    - hermes-yuanbao
 platforms:
   api_server:
     enabled: true
     extra:
       host: 127.0.0.1
       port: 8642
-mcp_servers:
-  agentmemory:
-    command: npx
-    args:
-    - -y
-    - '@agentmemory/mcp'
-
+plugins:
+  enabled:
+    - agentmemory
+    - horizon
+session_reset:
+  at_hour: 4
+  idle_minutes: 1440
+  mode: none
