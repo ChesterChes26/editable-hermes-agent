@@ -18,10 +18,14 @@ A2A:A(:8642,WeChat/QQ),B(:8643推理);[CALLER]前缀,B仅认a/c;API_SERVER_KEY p
 §
 hermes sync:git跟踪user-*≠运行时*;commit前diff五对;push经127.0.0.1:7897;上游:fetch upstream→merge main→push→merge chester→uv sync→gateway restart
 §
-Horizon:PER_TOOL_TIMEOUT=900s;stderr PIPE→DEVNULL→%TEMP%/horizon_stderr.log(3阶段,Windows pipe 4KB死锁→无限缓冲文件);devnull(orchestrator output);_proc_lock仅锁写工具(pipe),读工具直读data/mcp-runs/无锁;绝不用主线程→delegate/cronjob
-§
 skill操作前先skill_view加载;凭记忆patch必因旧字符串不匹配失败(已验证)。compact-memory同样先加载
 §
-Office经典版:C2R v16.0.20131 x64;ODT/configure headless→exit127,用OfficeSetup.exe;WinHTTP代理须同步系统代理(Outlook走WinHTTP),且绕过含login.live.com/*.msauth.net;WinINET绕过也须同步(Office AuthHost走WinINET);中文:Office16\2052已存在,注册表LanguageResources\UILanguage=2052
+Office:经典版C2R v16.0.20131;ODT→OfficeSetup.exe;WinHTTP代理须同步并绕过*.msauth.net/*.live.com;WinINET同上;中文UILanguage=2052
 §
 腾讯会议:下载页JS动态生成链接(curl/wget拿不到URL);Outlook插件仅支持经典Outlook(COM add-in),不支持新版olk.exe;前提需客户端≥2.10+经典Outlook
+§
+Horizon:PER_TOOL_TIMEOUT=900s;stderr→%TEMP%/horizon_stderr.log;devnull;prod_only锁写工具;绝不用主线程→delegate/cronjob
+§
+cua-driver:Outlook会议窗(rctrl_renwnd32)UIA不可用(0x80040201);COM hybrid:win32com Dispatch→Inspectors→AppointmentItem;PostMessage Tab/Alt+S无效;type_text须带window_id;GetActiveObject挂→Dispatch;skill:computer-use refs/outlook-form-limitation
+§
+协作风格:验证session参与架构设计,实时反馈桌面状态纠盲点;偏好混合方案战胜单工具死磕
