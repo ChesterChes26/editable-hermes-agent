@@ -179,13 +179,83 @@ git push origin chester --force-with-lease
 Note: `git push origin main` on step 2 is important — if `main` diverges
 between fork and local, future fetches may produce confusing diffs.
 
-## Incremental sync (after each session with changes)
+## Pre-Commit Checklist (MANDATORY before every commit+push)
 
-Hermes has **five** directory pairs where runtime can diverge from git-tracked.
-`skill_manage`/curator edits land in the runtime directory; `git status` only
-checks the git-tracked copy → silently reports "clean" even when there are
-uncommitted changes. Always run a full cross-directory diff before concluding
-"nothing to commit":
+When the user says "commit and push" / "提交代码" / "提交" or any trigger that leads
+to a commit, you MUST run this checklist BEFORE `git add` + `git commit`.  A bare
+`git status` in the repo is insufficient — it only sees `user-*` directories,
+not the runtime copies that actually diverge.
+
+### Step P1: 5-pair sync check
+
+Run the diff for all five directory pairs.  This is the **only reliable way** to
+detect changes — `skill_manage`, curator edits, and runtime file writes all
+modify the runtime directory, NOT the git-tracked copy.
+
+```bash
+cd ~/AppData/Local/hermes  # Windows (macOS: ~/.hermes)
+
+for pair in \
+  "skills:user-skills" \
+  "plugins:user-plugins" \
+  "hooks:user-config/hooks" \
+  "scripts:user-config/scripts" \
+  "memories:user-config/memories"
+do
+  runtime="${pair%%:*}"
+  gt="${pair##*:}"
+  result=$(diff -rq --exclude=__pycache__ "$runtime/" "hermes-agent/$gt/" 2>&1 \
+    | grep -v ".lock\|.hub\|.bundled_manifest\|.curator\|.usage.json" | head -5)
+  if [ -n "$result" ]; then
+    echo "❌ $runtime — 需要同步"
+    echo "$result"
+  else
+    echo "✓ $runtime"
+  fi
+done
+```
+
+For every ❌ pair: sync runtime → git, exclude garbage (`.hub`, `.bundled_manifest`,
+`.curator_backups`, `.usage.json`, `.lock`, `__pycache__`), then `git add`.
+
+### Step P2: cron/jobs.json check
+
+```bash
+diff cron/jobs.json hermes-agent/user-config/cron/jobs.json
+```
+
+If diff shows runtime updates (timestamps, counts) → `cp` to git + `git add`.
+
+### Step P3: config.yaml check
+
+```bash
+diff config.yaml hermes-agent/user-config/config.yaml
+```
+
+If the runtime config has intentional changes (not API keys) → sync.  Do NOT
+commit `.env` or raw API keys.
+
+### Step P4: SETUP.md accuracy
+
+After syncing all directories, verify SETUP.md reflects the current state:
+
+- `user-plugins/` lists ALL installed plugins (not just agentmemory)
+- `user-skills/` path is correct
+- Restore step copies `user-plugins/*` (wildcard, not hardcoded names)
+
+### Step P5: Commit + Push
+
+Only after P1-P4 are all clean or synced:
+
+```bash
+cd hermes-agent
+git status          # should show only staged changes
+git commit -m "..."
+git -c http.proxy=http://127.0.0.1:7897 push origin chester
+```
+
+**Anti-pattern:** DO NOT skip the 5-pair diff when `git status` shows clean — runtime
+divergence is invisible to `git status`.  Every commit+push must be preceded by P1-P4.
 
 ```bash
 cd ~/AppData/Local/hermes  # Windows (macOS: ~/.hermes)

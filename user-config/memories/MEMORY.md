@@ -1,4 +1,4 @@
-fork:ChesterChes26/hermes-agent;plugins:agentmemory+skills;restore:clone+checkout chester+cp ~/.hermes/+env
+fork:ChesterChes26/editable-hermes-agent;plugins:agentmemory+horizon;restore:clone+checkout chester+cp user-*→runtime;5-pair diff:skills/plugins/hooks/scripts/memories→user-*/user-config/
 §
 Obsidian:D:/obsidian/2026→github/ChesterChes26/obsidian-2026;old wiki废弃;wiki-next活跃(86文件:36对+14独立),约束密度定拆否;git push after edits
 §
