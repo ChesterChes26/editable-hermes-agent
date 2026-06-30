@@ -15,7 +15,8 @@ hermes-agent/              # Hermes Agent 源码（含自定义改动）
 │   ├── weixin.py          # WeChat ITEM_NOTE + obsidian-sync 自动加载
 │   └── qqbot/adapter.py   # QQ Bot 定制
 ├── user-plugins/          # 自定义插件
-│   └── agentmemory/       # 持久化跨 session 记忆
+│   ├── agentmemory/       # 持久化跨 session 记忆
+│   └── horizon/           # AI 资讯聚合 (Horizon MCP)
 ├── user-skills/           # 默认 profile 已安装 skills
 ├── user-config/           # 运行时配置（同步到 runtime 目录）
 │   ├── config.yaml        # 主配置（已脱敏）
@@ -60,7 +61,7 @@ cd ~/.hermes
 
 # === plugins ===
 mkdir -p plugins
-cp -r hermes-agent/user-plugins/agentmemory plugins/agentmemory
+cp -r hermes-agent/user-plugins/* plugins/
 
 # === skills ===
 rm -rf skills
