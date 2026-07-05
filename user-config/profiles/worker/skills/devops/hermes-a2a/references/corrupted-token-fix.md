@@ -10,7 +10,7 @@ The agent sees the context-injected version of memory, which may show the corrup
 
 1. Locate the memory file:
    - Windows: `%LOCALAPPDATA%/hermes/profiles/<profile>/memories/MEMORY.md`
-   - Example: `C:/Users/chester.chen/AppData/Local/hermes/profiles/worker/memories/MEMORY.md`
+   - Example: `$HOME/AppData/Local/hermes/profiles/worker/memories/MEMORY.md`
 
 2. Read the identity line to see what's actually there:
    ```

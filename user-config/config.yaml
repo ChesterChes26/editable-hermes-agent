@@ -653,7 +653,7 @@ mcp_servers:
     command: npx
   cua-driver:
     command: 
-      C:\Users\chester.chen\AppData\Local\Programs\Cua\cua-driver\bin\cua-driver.exe
+      $HOME\AppData\Local\Programs\Cua\cua-driver\bin\cua-driver.exe
     args[0]: mcp
 platform_toolsets:
   cli:

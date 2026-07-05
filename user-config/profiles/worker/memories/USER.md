@@ -1,6 +1,6 @@
 WeChat account: 72fc9745a445@im.bot. QQ Bot ID: 1904166052. Both platforms active via Hermes gateway.
 §
-Chinese-speaking user on Windows 10. Uses WeChat (weixin) and QQ Bot (qqbot) as primary messaging channels through Hermes gateway. Obsidian vault at D:\obsidian\2026. Prefers agent-driven automation — chose agent-side Obsidian sync (Option C) over hook-based or infrastructure approaches. Curious about internals, asks "how does this work" questions frequently.
+Chinese-speaking user on Windows 10. Uses WeChat (weixin) and QQ Bot (qqbot) as primary messaging channels through Hermes gateway. Obsidian vault at $OBSIDIAN_VAULT. Prefers agent-driven automation — chose agent-side Obsidian sync (Option C) over hook-based or infrastructure approaches. Curious about internals, asks "how does this work" questions frequently.
 §
 Prefers LLM intent judgment over hardcoded keyword matching. Don't write "if user says X then Y" rules — use semantic understanding to detect intent.
 §

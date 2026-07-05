@@ -101,7 +101,11 @@ git clone https://github.com/<user>/hermes-agent.git ~/.hermes/hermes-agent
 cd ~/.hermes/hermes-agent
 git checkout <branch-name>
 
-# Sync all five runtime directories (see incremental sync for rationale):
+# 0. Create path-vars.yaml from template
+cp user-config/path-vars.template.yaml ~/.hermes/path-vars.yaml
+# Edit: set HOME, HERMES_HOME, OBSIDIAN_VAULT to local paths
+
+# Sync all five runtime directories:
 cd ~/.hermes
 mkdir -p plugins
 cp -r hermes-agent/user-plugins/* plugins/
@@ -125,6 +129,9 @@ cp hermes-agent/user-config/cron/jobs.json cron/
 rm -rf profiles/worker && mkdir -p profiles/worker
 cp hermes-agent/user-config/profiles/worker/config.yaml profiles/worker/
 cp -r hermes-agent/user-config/profiles/worker/skills profiles/worker/skills
+
+# 6. Localize portable $VAR references to this machine's paths
+python skills/devops/path-sync/scripts/localize.py
 
 # Manually restore .env (NEVER in git)
 ```

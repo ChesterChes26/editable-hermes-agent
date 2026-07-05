@@ -14,7 +14,7 @@ wiki-guide-split v2:Phase0→Phase1密度→拆分/单文件;target:wiki-next;3a
 §
 A2A:A(:8642,WeChat/QQ),B(:8643推理);B仅认a/c;ACP≠MCP≠A2A;API_SERVER_KEY per-profile
 §
-hermes sync:git跟踪user-*≠运行时;commit前diff;push经127.0.0.1:7897;fetch upstream→merge→uv sync→gateway restart
+hermes sync:git源(editable-hermes-agent/):user-*→$VAR便携;runtime→canonicalize→commit;pull→cp→localize→本地路径;path-vars.yaml每台机自维护
 §
 skill:先view后patch;凭记忆patch必失败;compact-memory先加载
 §

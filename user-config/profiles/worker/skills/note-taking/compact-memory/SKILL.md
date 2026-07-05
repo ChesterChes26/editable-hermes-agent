@@ -17,7 +17,7 @@ Every memory entry MUST be telegraphic. Drop articles, copulas, and filler. Use 
 
 | Bad (full sentence) | Good (telegraphic) |
 |---|---|
-| The Obsidian vault is located at D:\obsidian\2026 | Obsidian vault: D:\obsidian\2026 |
+| The Obsidian vault is located at $OBSIDIAN_VAULT | Obsidian vault: $OBSIDIAN_VAULT |
 | WeChat uses pairing mode for DM authorization | WeChat DM: pairing mode |
 | Reasonix is installed at ~/AppData/Roaming/npm/reasonix | Reasonix at ~/AppData/Roaming/npm/reasonix |
 | It supports ACP mode for delegation | ACP delegation via delegate_task(...) |
@@ -43,7 +43,7 @@ Read current entries. Flag entries that are:
 
 Save flagged entries to Obsidian archive:
 ```
-D:\obsidian\2026\hermes-memory\{YYYY-MM-DD}.md
+$OBSIDIAN_VAULT\hermes-memory\{YYYY-MM-DD}.md
 ```
 
 Format:
@@ -78,5 +78,5 @@ Only archive entries that are genuinely stale or cannot be compressed further.
 
 ## Obsidian Vault Path
 
-Archive root: `D:\obsidian\2026\hermes-memory\`
+Archive root: `$OBSIDIAN_VAULT\hermes-memory\`
 Create the directory if it doesn't exist.
