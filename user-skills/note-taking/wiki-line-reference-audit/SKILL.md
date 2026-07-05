@@ -69,8 +69,8 @@ Run a second extraction pass to confirm no old line numbers remain. Use a whitel
 
 | Path | Purpose |
 |------|---------|
-| `D:/obsidian/2026/wiki/concepts(概念)/*.md` | Wiki documents |
-| `C:/Users/chester.chen/AppData/Local/hermes/hermes-agent/` | Hermes source code |
+| `$OBSIDIAN_VAULT/wiki/concepts(概念)/*.md` | Wiki documents |
+| `$HOME/AppData/Local/hermes/hermes-agent/` | Hermes source code |
 | `agent/conversation_loop.py` | Most-referenced file (~15 refs) |
 | `tools/approval.py` | Second-most-referenced (~20 refs) |
 | `agent/context_compressor.py` | Third-most (~10 refs) |

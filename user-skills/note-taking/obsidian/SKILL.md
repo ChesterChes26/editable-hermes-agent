@@ -10,14 +10,14 @@ Use this skill for filesystem-first Obsidian vault work: reading notes, listing 
 
 ## Vault path
 
-**This user's vault:** `D:\obsidian\2026`
+**This user's vault:** `$OBSIDIAN_VAULT`
 
-Use this concrete path directly — do not shell-expand `$OBSIDIAN_VAULT_PATH`. If unset or unreachable, fall back to `D:\obsidian\2026`.
+Use this concrete path directly — do not shell-expand `$OBSIDIAN_VAULT_PATH`. If unset or unreachable, fall back to `$OBSIDIAN_VAULT`.
 
 ## Vault Layout
 
 ```
-D:\obsidian\2026\
+$OBSIDIAN_VAULT\
 ├── inbox/                     # obsidian-sync image archive
 ├── memory(记忆)/              # agent behavioral memory (independent)
 │   ├── index.md

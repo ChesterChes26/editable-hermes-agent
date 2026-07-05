@@ -17,13 +17,13 @@ from pathlib import Path
 # ============================================================
 MAPPINGS = [
     # (旧路径, 新路径) — 三种斜杠变体都要覆盖
-    (r"D:\obsidian\2026", r"E:\new_workspace\obsidian-2026"),
-    (r"D:/obsidian/2026", r"E:/new_workspace/obsidian-2026"),
-    (r"D:\\obsidian\\2026", r"E:\\new_workspace\\obsidian-2026"),
-    (r"C:\Users\chester.chen", r"C:\Users\admin"),
-    (r"C:/Users/chester.chen", r"C:/Users/admin"),
-    (r"C:\\Users\\chester.chen", r"C:\\Users\\admin"),
-    # (r"D:\workspace\AI-research\Horizon", r"<新路径>"),  # horizon 待定
+    (r"D:\obsidian\2026", r"$OBSIDIAN_VAULT"),
+    (r"D:/obsidian/2026", r"$OBSIDIAN_VAULT"),
+    (r"D:\\obsidian\\2026", r"$OBSIDIAN_VAULT"),
+    (r"C:\Users\chester.chen", r"$HOME"),
+    (r"C:/Users/chester.chen", r"$HOME"),
+    (r"C:\\Users\\chester.chen", r"$HOME"),
+    # (r"$HORIZON_HOME", r"<新路径>"),  # horizon 待定
 ]
 
 # ============================================================

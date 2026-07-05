@@ -26,7 +26,7 @@ read_file("D:/path/to/source-file.md")
 ### 2. 阅读 SCHEMA 确认最新约定
 
 ```tool
-read_file("D:/obsidian/2026/wiki/SCHEMA.md")
+read_file("$OBSIDIAN_VAULT/wiki/SCHEMA.md")
 ```
 
 特别检查：frontmatter 格式、tag taxonomy、目录结构、关联页面的路由
@@ -34,14 +34,14 @@ read_file("D:/obsidian/2026/wiki/SCHEMA.md")
 ### 3. 检查 wiki 已有相关页面
 
 ```tool
-search_files(target="files", pattern="*关键词*", path="D:/obsidian/2026/wiki")
+search_files(target="files", pattern="*关键词*", path="$OBSIDIAN_VAULT/wiki")
 ```
 
 避免重复创建。如果存在相关页面，考虑更新已有页面而非新建。
 
 ### 4. 创建概念/对比/实体页
 
-文件路径：`D:/obsidian/2026/wiki/<category>(<中文名>)/<filename>.md`
+文件路径：`$OBSIDIAN_VAULT/wiki/<category>(<中文名>)/<filename>.md`
 
 - 文件名全小写，连字符分隔
 - YAML frontmatter（title/created/updated/type/tags/sources/confidence）
@@ -54,7 +54,7 @@ search_files(target="files", pattern="*关键词*", path="D:/obsidian/2026/wiki"
 ### 5. 更新 index.md
 
 ```tool
-pad = patch(path="D:/obsidian/2026/wiki/index.md",
+pad = patch(path="$OBSIDIAN_VAULT/wiki/index.md",
             old_string="### 总页数: <N>",
             new_string="### 总页数: <N+1>")
 ```
@@ -70,7 +70,7 @@ pad = patch(path="D:/obsidian/2026/wiki/index.md",
 ### 6. 追加 log.md
 
 ```tool
-patch(path="D:/obsidian/2026/wiki/log.md",
+patch(path="$OBSIDIAN_VAULT/wiki/log.md",
       old_string="<前一次log的最后一行的文本>",
       new_string="<前一次log的最后一行的文本>\n\n..."
 ```

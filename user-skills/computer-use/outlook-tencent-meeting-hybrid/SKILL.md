@@ -22,13 +22,13 @@ COM 封装脚本内置于 skill 中：`scripts/compose.py`（支持 compose / se
 调用时使用 skill 目录下的绝对路径。在 Hermes Agent 环境中：
 
 ```bash
-SKILL_DIR="C:/Users/chester.chen/AppData/Local/hermes/skills/computer-use/outlook-tencent-meeting-hybrid"
+SKILL_DIR="$HOME/AppData/Local/hermes/skills/computer-use/outlook-tencent-meeting-hybrid"
 python "$SKILL_DIR/scripts/compose.py" compose --to <email> --start "YYYY-MM-DD HH:MM" --end "YYYY-MM-DD HH:MM"
 ```
 
 ## 工作流（7 步：Step 0 基线 → 5 步核心 → Step 6 报告）
 
-> **⚠️ 重点：不要花任何时间去 `C:/Users/chester.chen/` 下找 `outlook_com.py`。它不存在。直接 `$SKILL_DIR/scripts/compose.py`。**
+> **⚠️ 重点：不要花任何时间去 `$HOME/AppData/Local/hermes/` 下找 `outlook_com.py`。它不存在。直接 `$SKILL_DIR/scripts/compose.py`。**
 
 执行每一步前先更新 todo 状态。
 

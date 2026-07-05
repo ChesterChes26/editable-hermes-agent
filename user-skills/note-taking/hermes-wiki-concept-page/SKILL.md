@@ -1,6 +1,6 @@
 ---
 name: hermes-wiki-concept-page
-description: Create Hermes wiki concept pages from source code — read template, deep-read source, write drafts to D:/obsidian/2026/wiki/_drafts/.
+description: Create Hermes wiki concept pages from source code — read template, deep-read source, write drafts to $OBSIDIAN_VAULT/wiki/_drafts/.
 version: 1.0.0
 tags: [wiki, obsidian, hermes-internals, concept-page]
 related_skills: [obsidian, wiki-line-reference-audit]
@@ -14,21 +14,21 @@ Create draft concept pages for the Hermes wiki. Each page explains one Hermes su
 
 - User asks to "create a wiki page for X"
 - User asks to "write a concept page for the Hermes wiki"
-- User mentions `D:/obsidian/2026/wiki/_drafts/` or the `_TEMPLATE.md`
+- User mentions `$OBSIDIAN_VAULT/wiki/_drafts/` or the `_TEMPLATE.md`
 - User asks you to analyze a Hermes subsystem and produce documentation
 
 ## Prerequisites
 
-- Hermes source code at `C:/Users/chester.chen/AppData/Local/hermes/hermes-agent/`
-- Template at `D:/obsidian/2026/wiki/_drafts/_TEMPLATE.md`
-- Output directory exists: `D:/obsidian/2026/wiki/_drafts/`
+- Hermes source code at `$HOME/AppData/Local/hermes/hermes-agent/`
+- Template at `$OBSIDIAN_VAULT/wiki/_drafts/_TEMPLATE.md`
+- Output directory exists: `$OBSIDIAN_VAULT/wiki/_drafts/`
 
 ## Workflow
 
 ### Phase 1: Read the Template (ALWAYS first)
 
 ```
-read_file("D:/obsidian/2026/wiki/_drafts/_TEMPLATE.md")
+read_file("$OBSIDIAN_VAULT/wiki/_drafts/_TEMPLATE.md")
 ```
 
 The template defines the exact structure required. Do not deviate.
@@ -116,7 +116,7 @@ Use `patch` to insert expansions **before** existing sections (use the section h
 ### Phase 5: Verify
 
 ```bash
-wc -l D:/obsidian/2026/wiki/_drafts/hermes-<slug>.md
+wc -l $OBSIDIAN_VAULT/wiki/_drafts/hermes-<slug>.md
 ```
 
 Confirm all files are 200-400 lines. Confirm YAML frontmatter has all required fields. Confirm wikilinks use correct paths.
@@ -128,7 +128,7 @@ When there are many topics (10+), do NOT create them one-by-one in the main agen
 ### Step 1: Create the template (if not exists)
 
 ```bash
-mkdir -p D:/obsidian/2026/wiki/_drafts/
+mkdir -p $OBSIDIAN_VAULT/wiki/_drafts/
 # Write _TEMPLATE.md with YAML frontmatter + section structure
 ```
 
@@ -139,7 +139,7 @@ Group topics by tier, then split into chunks of 3-7 per subagent. Max 3 subagent
 ### Step 3: Craft subagent prompts
 
 Each subagent needs:
-- **goal**: "Create N draft wiki concept pages in D:/obsidian/2026/wiki/_drafts/. Read template first."
+- **goal**: "Create N draft wiki concept pages in $OBSIDIAN_VAULT/wiki/_drafts/. Read template first."
 - **context**: Topic details (slug, source file, "what it does", "why important"), wiki conventions, template path
 - **toolsets**: `["terminal", "file", "web"]` — they need to read source and write files
 
@@ -164,12 +164,12 @@ Each round is one `delegate_task(tasks=[...])` call. The subagents' results re-e
 
 After all rounds complete, verify file count:
 ```bash
-ls D:/obsidian/2026/wiki/_drafts/hermes-*.md | wc -l
+ls $OBSIDIAN_VAULT/wiki/_drafts/hermes-*.md | wc -l
 ```
 
 ### Pitfalls specific to batch delegation
 
-- **Subagents cannot read the template if you don't tell them where it is.** Always include "Read D:/obsidian/2026/wiki/_drafts/_TEMPLATE.md first" in the context.
+- **Subagents cannot read the template if you don't tell them where it is.** Always include "Read $OBSIDIAN_VAULT/wiki/_drafts/_TEMPLATE.md first" in the context.
 - **Subagents have no memory of the main conversation.** Pass ALL wiki conventions in the context — don't assume they know Chinese question titles or `concepts(概念)/` paths.
 - **Subagents write with `write_file`** — they don't need the `obsidian` skill. Give them `terminal` + `file` toolsets.
 - **Tier 3 topics can be shorter** — tell subagents "100-200 lines OK for Tier 3" to avoid padding.
@@ -204,10 +204,10 @@ ls D:/obsidian/2026/wiki/_drafts/hermes-*.md | wc -l
 
 | Path | Purpose |
 |------|---------|
-| `D:/obsidian/2026/wiki/_drafts/_TEMPLATE.md` | Page template (on-disk copy) |
-| `D:/obsidian/2026/wiki/_drafts/` | Output directory for drafts |
-| `D:/obsidian/2026/wiki/concepts(概念)/` | Published concept pages (not drafts) |
-| `C:/Users/chester.chen/AppData/Local/hermes/hermes-agent/` | Hermes source code root |
+| `$OBSIDIAN_VAULT/wiki/_drafts/_TEMPLATE.md` | Page template (on-disk copy) |
+| `$OBSIDIAN_VAULT/wiki/_drafts/` | Output directory for drafts |
+| `$OBSIDIAN_VAULT/wiki/concepts(概念)/` | Published concept pages (not drafts) |
+| `$HOME/AppData/Local/hermes/hermes-agent/` | Hermes source code root |
 
 ## Support Files
 

@@ -33,7 +33,7 @@ COM:      Dispatch → Inspectors → AppointmentItem          ✓
 CUA UIA:  verify in Calendar                                ✓
 ```
 
-Tool: `outlook_com.py` (131 lines) at `C:/Users/chester.chen/outlook_com.py`
+Tool: `outlook_com.py` (131 lines) at `$HOME/outlook_com.py`
 
 ### COM gotchas
 

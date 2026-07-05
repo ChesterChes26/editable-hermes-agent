@@ -51,12 +51,12 @@ Focus on the `agent/` directory first—it contains the core mechanisms.
 Read the wiki index to understand what's already documented:
 
 ```python
-read_file("D:/obsidian/2026/wiki-next/index.md")
+read_file("$OBSIDIAN_VAULT/wiki-next/index.md")
 ```
 
 Also check the old wiki/ for legacy coverage:
 ```python
-read_file("D:/obsidian/2026/wiki/index.md")
+read_file("$OBSIDIAN_VAULT/wiki/index.md")
 ```
 
 Extract all existing wiki pages relevant to the codebase. For Hermes, these are the `hermes-*` entries under `concepts(概念)/` in both wiki/ and wiki-next/.

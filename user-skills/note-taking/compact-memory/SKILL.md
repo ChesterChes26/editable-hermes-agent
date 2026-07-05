@@ -17,7 +17,7 @@ Every memory entry MUST be telegraphic. Drop articles, copulas, and filler. Use 
 
 | Bad (full sentence) | Good (telegraphic) |
 |---|---|
-| The Obsidian vault is located at D:\obsidian\2026 | Obsidian vault: D:\obsidian\2026 |
+| The Obsidian vault is located at $OBSIDIAN_VAULT | Obsidian vault: $OBSIDIAN_VAULT |
 | WeChat uses pairing mode for DM authorization | WeChat DM: pairing mode |
 | Reasonix is installed at ~/AppData/Roaming/npm/reasonix | Reasonix at ~/AppData/Roaming/npm/reasonix |
 | It supports ACP mode for delegation | ACP delegation via delegate_task(...) |
@@ -59,7 +59,7 @@ Do NOT archive entries that are still actively used — compression alone should
 
 For each stale entry:
 
-1. Save to Obsidian: `D:\obsidian\2026\hermes-memory\{YYYY-MM-DD}.md`
+1. Save to Obsidian: `$OBSIDIAN_VAULT\hermes-memory\{YYYY-MM-DD}.md`
 2. Remove from Hermes: `memory(action='remove', target='memory', old_text='...')`
 
 Archive format:
@@ -77,7 +77,7 @@ Archived from Hermes memory store to free capacity.
 
 EVERY compact pass MUST leave a record, even if nothing was archived (pure compression):
 
-Create or append to `D:\obsidian\2026\hermes-memory\{YYYY-MM-DD}.md` with:
+Create or append to `$OBSIDIAN_VAULT\hermes-memory\{YYYY-MM-DD}.md` with:
 
 ```markdown
 # Hermes Memory Compact — {YYYY-MM-DD}
@@ -120,5 +120,5 @@ Why not modify `memory_tool.py` to remove the 2,200 char limit or proxy to Obsid
 ## File Locations
 
 - **Source** (Hermes memory store): `~/AppData/Local/hermes/memories/MEMORY.md` + `USER.md`
-- **Archive log** (Obsidian): `D:\\obsidian\\2026\\hermes-memory\\{date}.md`
+- **Archive log** (Obsidian): `$OBSIDIAN_VAULT\\hermes-memory\\{date}.md`
 - See `references/hermes-memory-file-locations.md` for the full relationship and common misconceptions.

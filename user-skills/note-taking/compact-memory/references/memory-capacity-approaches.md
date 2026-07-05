@@ -8,7 +8,7 @@ MEMORY.md 只存文件路径索引 → 实际内容在 Obsidian vault。
 
 ```
 MEMORY.md:      obsidian-path: 记忆/agentmemory恢复.md
-Obsidian:       D:/obsidian/2026/记忆/agentmemory恢复.md (完整内容)
+Obsidian:       $OBSIDIAN_VAULT/记忆/agentmemory恢复.md (完整内容)
 ```
 
 ### 优势

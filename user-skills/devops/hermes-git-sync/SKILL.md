@@ -243,9 +243,30 @@ After syncing all directories, verify SETUP.md reflects the current state:
 - `user-skills/` path is correct
 - Restore step copies `user-plugins/*` (wildcard, not hardcoded names)
 
-### Step P5: Commit + Push
+### Step P5: Canonicalize paths（路径格式化）
 
-Only after P1-P4 are all clean or synced:
+在 commit 前，将本机绝对路径替换为 `$VAR` 占位符（让 git 中的文件跨机器可移植）：
+
+```bash
+cd hermes-agent
+HERMES_HOME=$(echo $HERMES_HOME) \
+python $HERMES_HOME/skills/devops/path-sync/scripts/canonicalize.py
+```
+
+验证无裸路径残留：
+```bash
+# 检查是否有本机用户名残留
+grep -r "C:\\\\Users\\\\admin" user-skills/ user-plugins/ user-config/ --include="*.md" --include="*.py" | wc -l
+# → 应为 0
+
+# 检查 $VAR 占位符正确生成
+grep -r '\$HOME\|\$HERMES_HOME\|\$OBSIDIAN_VAULT' user-skills/ user-config/ --include="*.md" | wc -l
+# → 应有几十行
+```
+
+### Step P6: Commit + Push
+
+Only after P1-P5 are all clean or synced:
 
 ```bash
 cd hermes-agent
@@ -255,7 +276,7 @@ git -c http.proxy=http://127.0.0.1:7897 push origin chester
 ```
 
 **Anti-pattern:** DO NOT skip the 5-pair diff when `git status` shows clean — runtime
-divergence is invisible to `git status`.  Every commit+push must be preceded by P1-P4.
+divergence is invisible to `git status`.  Every commit+push must be preceded by P1-P5.
 
 ```bash
 cd ~/AppData/Local/hermes  # Windows (macOS: ~/.hermes)

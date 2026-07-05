@@ -15,7 +15,7 @@ Saving: 73% compression
 ### 1. Create wiki directory structure
 
 ```
-D:\\obsidian\\2026\\memory\\
+$OBSIDIAN_VAULT\\memory\\
 ├── index.md                 # Wiki-readable index
 ├── driving/
 │   ├── behavior.md
@@ -39,7 +39,7 @@ For each built-in memory entry:
 After all files are written, construct the compact MEMORY INDEX:
 
 ```
-MEMORY INDEX — load via read_file(D:/obsidian/2026/memory/<path>.md):
+MEMORY INDEX — load via read_file($OBSIDIAN_VAULT/memory/<path>.md):
 → pause before risky ops | driving/behavior
 → don't echo/附和 | driving/corrections
 → user prefs: CN, WeChat/QQ, concise | driving/preferences

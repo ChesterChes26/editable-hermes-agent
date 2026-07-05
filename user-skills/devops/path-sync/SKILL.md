@@ -1,67 +1,85 @@
 ---
 name: path-sync
-description: "Sync hardcoded paths in runtime skills/plugins/scripts from git repo to local machine paths. Run after pulling updates from user-skills/user-config into runtime."
-version: 1.0.0
+description: "Sync hardcoded paths in runtime skills/plugins between portable $VAR references (git) and local paths (runtime). Canonicalize before commit, localize after pull."
+version: 2.0.0
 author: Hermes Agent
 ---
 
-# Path Sync — 运行时路径同步
+# Path Sync — 两端路径同步（v2）
 
-从 git 仓库 `user-skills/`、`user-plugins/`、`user-config/` 同步内容到 runtime 后，
-skill 中可能包含旧机器的硬编码路径，需要替换为当前机器路径。
+Git 中的文件使用 `$VAR` 便携占位符（如 `$HOME`, `$HERMES_HOME`），每台机器在自己的 `path-vars.yaml` 中维护本机路径映射。
 
-## 路径映射表
+## 配置
 
-| 旧路径 | 新路径 | 说明 |
-|--------|--------|------|
-| `D:\obsidian\2026` | `E:\new_workspace\obsidian-2026` | Obsidian vault |
-| `D:/obsidian/2026` | `E:/new_workspace/obsidian-2026` | Obsidian vault (正斜杠) |
-| `C:\Users\chester.chen` | `C:\Users\admin` | Windows 用户目录 |
-| `C:/Users/chester.chen` | `C:/Users/admin` | Windows 用户目录 (正斜杠) |
-| `D:\workspace\AI-research\Horizon` | *(待定)* | Horizon 项目 (暂未安装) |
+每台机器的 `$HERMES_HOME/path-vars.yaml`：
 
-> **添加新映射**: 换机后在此表追加旧路径→新路径的映射即可。
-
-## 使用方式
-
-### 1. 扫描差异（只读，不修改）
-
-```bash
-cd <HERMES_HOME>
-python skills/devops/path-sync/scripts/sync.py --dry-run
+```yaml
+variables:
+  HOME: "$HOME"
+  HERMES_HOME: "$HERMES_HOME"
+  OBSIDIAN_VAULT: "$OBSIDIAN_VAULT"
+  HORIZON_HOME: "$HORIZON_HOME"
+  AGENTMEMORY_HOME: "$AGENTMEMORY_HOME"
+  EDITABLE_HERMES: "$EDITABLE_HERMES"
 ```
 
-### 2. 执行替换
-
-```bash
-cd <HERMES_HOME>
-python skills/devops/path-sync/scripts/sync.py
-```
-
-### 3. 替换后验证
-
-```bash
-cd <HERMES_HOME>
-python skills/devops/path-sync/scripts/sync.py --verify
-```
-
-## 排除规则
-
-以下目录/文件不扫描：
-- `skills/devops/horizon/` — horizon 未安装，跳过
-- `plugins/horizon/` — 同上
-- `*.lock`、`*.hub`、`*.bundled_manifest`、`.usage.json`、`__pycache__`
-
-## 适用范围
-
-- **扫描目录**: `skills/`、`plugins/`、`scripts/`、`hooks/`
-- **文件类型**: `.md`、`.py`、`.yaml`、`.json`、`.sh`、`.bat`、`.mjs`
+模板文件: `user-config/path-vars.template.yaml`（git 中有，供参考）。
 
 ## 工作流
 
-```
-git pull → cp user-* → runtime/ → 运行 sync.py → 路径已适配本机 ✓
+### Push 前（runtime → git）
+
+```bash
+# 1. 同步 runtime → git source
+cd $HERMES_HOME
+for pair in skills:user-skills plugins:user-plugins hooks:user-config/hooks scripts:user-config/scripts memories:user-config/memories; do
+  src="${pair%%:*}"
+  dst="${pair##*:}"
+  rm -rf ../editable-hermes-agent/$dst
+  cp -r $src ../editable-hermes-agent/$dst
+done
+
+# 2. 格式化路径为便携变量
+cd ../editable-hermes-agent
+HERMES_HOME=$HERMES_HOME python $HERMES_HOME/skills/devops/path-sync/scripts/canonicalize.py
+
+# 3. 清理垃圾
+find user-skills user-plugins \( -name ".hub" -o -name ".bundled_manifest" -o -name ".curator_backups" -o -name ".usage.json" -o -name "*.lock" -o -name "__pycache__" \) -exec rm -rf {} + 2>/dev/null
+
+# 4. Commit
+git add user-skills/ user-plugins/ user-config/
+git commit -m "sync: user skills + plugins + config"
+git push
 ```
 
-日常：修改 skill 后，先确认没有把本机路径写死进去。
-如果写了绝对路径，优先用环境变量（如 `%USERPROFILE%`）或相对路径。
+### Pull 后（git → runtime）
+
+```bash
+# 1. Pull
+cd editable-hermes-agent
+git pull
+
+# 2. 同步 git source → runtime
+cd $HERMES_HOME
+for pair in skills:user-skills plugins:user-plugins hooks:user-config/hooks scripts:user-config/scripts memories:user-config/memories; do
+  src="${pair##*:}"
+  dst="${pair%%:*}"
+  rm -rf $dst
+  cp -r ../editable-hermes-agent/$src $dst
+done
+
+# 3. 替换路径为本机路径
+python skills/devops/path-sync/scripts/localize.py
+```
+
+## 脚本说明
+
+| 脚本 | 方向 | 目标目录 | 功能 |
+|------|------|----------|------|
+| `canonicalize.py` | 本机路径 → `$VAR` | `user-skills/`, `user-plugins/`, `user-config/` | Push 前执行 |
+| `localize.py` | `$VAR` → 本机路径 | `skills/`, `plugins/`, `scripts/`, `hooks/`, `memories/`, `profiles/` | Pull 后执行 |
+| `sync.py` | (deprecated) | — | 旧版单向映射表，保留向后兼容 |
+
+## 排除规则
+
+`*.lock`, `*.hub`, `*.bundled_manifest`, `.usage.json`, `__pycache__` — 运行时垃圾，永远不同步。

@@ -6,10 +6,10 @@ When dispatching subagents to create wiki drafts in parallel, use this structure
 
 ```
 You are creating draft wiki pages for the Hermes Agent wiki.
-Output directory: D:/obsidian/2026/wiki/_drafts/
+Output directory: $OBSIDIAN_VAULT/wiki/_drafts/
 
-TEMPLATE: Read D:/obsidian/2026/wiki/_drafts/_TEMPLATE.md first.
-SOURCE CODE BASE: C:/Users/chester.chen/AppData/Local/hermes/hermes-agent/
+TEMPLATE: Read $OBSIDIAN_VAULT/wiki/_drafts/_TEMPLATE.md first.
+SOURCE CODE BASE: $HOME/AppData/Local/hermes/hermes-agent/
 
 Topics to cover:
 
@@ -35,8 +35,8 @@ For each topic, read the actual source code to understand the mechanism, then wr
 ## Goal Template
 
 ```
-Create N draft wiki concept pages (Tier X topics A-B) in D:/obsidian/2026/wiki/_drafts/.
-Read the template at D:/obsidian/2026/wiki/_drafts/_TEMPLATE.md first and follow it exactly.
+Create N draft wiki concept pages (Tier X topics A-B) in $OBSIDIAN_VAULT/wiki/_drafts/.
+Read the template at $OBSIDIAN_VAULT/wiki/_drafts/_TEMPLATE.md first and follow it exactly.
 ```
 
 ## Toolsets

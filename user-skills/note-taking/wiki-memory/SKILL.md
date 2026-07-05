@@ -13,12 +13,12 @@ metadata:
 
 # Wiki Memory
 
-Memory lives in a standalone `memory(记忆)/` directory. Built-in memory holds a compact index (pointers). Full content lives in `D:\obsidian\2026\memory(记忆)/`. Every response must load relevant entries before acting.
+Memory lives in a standalone `memory(记忆)/` directory. Built-in memory holds a compact index (pointers). Full content lives in `$OBSIDIAN_VAULT\memory(记忆)/`. Every response must load relevant entries before acting.
 
 ## Memory Location
 
 ```
-D:\obsidian\2026\memory(记忆)/
+$OBSIDIAN_VAULT\memory(记忆)/
 ├── index.md                  # memory-specific index
 ├── driving(行为)/
 │   ├── behavior.md           # behavioral rules
@@ -30,7 +30,7 @@ D:\obsidian\2026\memory(记忆)/
     └── solutions.md          # patches, workarounds
 ```
 
-Separate from `D:\obsidian\2026\wiki/` which is the general knowledge base.
+Separate from `$OBSIDIAN_VAULT\wiki/` which is the general knowledge base.
 
 ## Memory Loading (MANDATORY — before any tool call)
 
@@ -39,7 +39,7 @@ Before responding to ANY user message:
 1. Scan the MEMORY INDEX block in your system prompt
 2. For each entry whose summary relates to the current task, load the full file:
    ```
-   read_file("D:/obsidian/2026/memory(记忆)/<path>.md")
+   read_file("$OBSIDIAN_VAULT/memory(记忆)/<path>.md")
    ```
 3. Apply loaded memory to your response
 
@@ -52,9 +52,9 @@ When you need to save durable knowledge:
 1. **Choose category**: `driving(行为)/` for behavioral rules/preferences/corrections, `technical(技术)/` for environment facts/solutions/internals
 2. **Write full content** to the appropriate file:
    - If file exists: `read_file` first, then `write_file` with appended content
-   - If new file: `write_file` to `D:/obsidian/2026/memory(记忆)/<category>/<name>.md`
+   - If new file: `write_file` to `$OBSIDIAN_VAULT/memory(记忆)/<category>/<name>.md`
 3. **Update index**: append a summary line to the MEMORY INDEX in built-in memory via `memory(action='add', target='memory', content='...')`
-4. **Update memory index**: append the entry to `D:/obsidian/2026/memory(记忆)/index.md`
+4. **Update memory index**: append the entry to `$OBSIDIAN_VAULT/memory(记忆)/index.md`
 
 ## Index Format
 

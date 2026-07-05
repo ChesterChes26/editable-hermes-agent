@@ -73,7 +73,7 @@ Session N+1 (新 session, agentmemory 多了 observation):
 ## agentmemory block 的真实格式
 
 ```xml
-<agentmemory-context project="C:\Users\chester.chen">
+<agentmemory-context project="$HOME">
 ## Session 20260622 (2026-06-22T08:48:01Z)
 - [conversation] <title>: <one-line narrative>
 - [conversation] <title>: <one-line narrative>

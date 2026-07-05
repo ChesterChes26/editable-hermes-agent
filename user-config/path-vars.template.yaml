@@ -1,0 +1,11 @@
+# Path variable template — copy to $HERMES_HOME/path-vars.yaml
+# Replace values with your machine's local paths.
+# DO NOT commit this file — each machine maintains its own.
+
+variables:
+  HOME: "C:\\Users\\<your-username>"
+  HERMES_HOME: "E:\\<path>\\hermes-e-data"
+  OBSIDIAN_VAULT: "E:\\<path>\\obsidian-2026"
+  HORIZON_HOME: "E:\\<path>\\Horizon"
+  AGENTMEMORY_HOME: "E:\\<path>\\agentmemory"
+  EDITABLE_HERMES: "E:\\<path>\\editable-hermes-agent"

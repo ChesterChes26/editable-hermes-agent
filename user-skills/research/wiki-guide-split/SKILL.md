@@ -8,7 +8,7 @@ version: 2.1.0
 
 将一次对话总结或文章阅读沉淀为 wiki 文档。不是机械搬运——先判断信息是否有提取价值，有就拆成 guide（可执行约束）+ reference（完整证据），没有就保留原始文档。
 
-旧 wiki 根目录（`D:/obsidian/2026/wiki/`）即将废弃，之后所有 wiki 存档都走这个流程。
+旧 wiki 根目录（`$OBSIDIAN_VAULT/wiki/`）即将废弃，之后所有 wiki 存档都走这个流程。
 
 ## 触发条件
 
@@ -144,7 +144,7 @@ guide 和 reference 同目录，后缀配对。`.ref.md` 只在有配对的 guid
 - 文件名全小写，连字符分隔。
 - 拆的文档：`xxx.md`（guide）+ `xxx.ref.md`（reference），同目录。
 - 不拆的文档：`xxx.md` 单文件。
-- 目标根路径：`D:/obsidian/2026/wiki-next/`。根据内容分入对应子目录：`concepts(概念)/`、`comparisons(对比)/`、`entities(实体)/`、`queries(问答)/`、`raw(源材料)/`。hermes 相关内容按 T0-T3 层级放入 `concepts(概念)/hermes/Tx(层级)/`。
+- 目标根路径：`$OBSIDIAN_VAULT/wiki-next/`。根据内容分入对应子目录：`concepts(概念)/`、`comparisons(对比)/`、`entities(实体)/`、`queries(问答)/`、`raw(源材料)/`。hermes 相关内容按 T0-T3 层级放入 `concepts(概念)/hermes/Tx(层级)/`。
 - **`raw(源材料)/` 目录不进入任何归档流程。** 此目录下的文档是原始材料（会话记录、文章原文），不拆 guide+ref，不做约束密度判断，不修改。只有 `concepts/`、`comparisons/`、`entities/`、`queries/` 下的文档走此流程。
 
 ## Frontmatter 规范
@@ -172,7 +172,7 @@ confidence: high | medium | low
 
 ### 1. 分类
 
-根据内容判断归属子目录。有疑问时参考 `D:/obsidian/2026/wiki-next/SCHEMA.md`。
+根据内容判断归属子目录。有疑问时参考 `$OBSIDIAN_VAULT/wiki-next/SCHEMA.md`。
 
 ### 2. 写文件
 
