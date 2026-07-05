@@ -83,3 +83,11 @@ python skills/devops/path-sync/scripts/localize.py
 ## 排除规则
 
 `*.lock`, `*.hub`, `*.bundled_manifest`, `.usage.json`, `__pycache__` — 运行时垃圾，永远不同步。
+
+## Pitfalls
+
+- **`cp -r skills/` 会带进上游技能**：apple 系列、`.curator_state` 是上游 bundled skill，不在用户定制范围。sync 后检查 `git status`，如出现则 `git rm --cached` + `rm -rf` 排除。
+- **目录结构变更导致 git rename**：如 horizon `horizon/` → `horizon/horizon/` 嵌套。`rm -rf + cp -r` 后 git 显示旧路径删除 + 新路径新增——正常，git 自行追踪即可。
+- **canonicalize.py 需要 `HERMES_HOME` 环境变量**：它通过 `HERMES_HOME` 定位 `path-vars.yaml`。在 git source 目录下执行时务必 `HERMES_HOME=...`。
+- **localize.py 只扫 runtime 目录**（`skills/`, `plugins/`, `scripts/`, `hooks/`, `memories/`, `profiles/`）。不要对 `user-skills/` 等 git 目录跑 localize——扫到空的 0 files。
+- **斜杠归一化**：localize.py 输出统一正斜杠 `/`。round-trip 比较时需 normalize slash，语义一致。

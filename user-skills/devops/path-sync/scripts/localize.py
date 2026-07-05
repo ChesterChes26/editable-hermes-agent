@@ -12,7 +12,7 @@ import yaml
 HERMES_HOME = Path(os.environ.get("HERMES_HOME", str(Path.home() / "AppData" / "Local" / "hermes")))
 VARS_FILE = HERMES_HOME / "path-vars.yaml"
 
-SCAN_DIRS = ["skills", "plugins", "scripts", "hooks", "memories", "profiles"]
+SCAN_DIRS = ["skills", "plugins", "scripts", "hooks", "memories", "profiles", "cron"]
 ROOT_FILES = ["config.yaml", ".env"]
 SCAN_GLOBS = ("*.md", "*.py", "*.yaml", "*.json", "*.sh", "*.bat", "*.mjs")
 EXCLUDE_GLOBS = (".lock", ".hub", ".bundled_manifest", ".usage.json")
