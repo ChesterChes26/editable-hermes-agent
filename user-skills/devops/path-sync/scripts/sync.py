@@ -16,11 +16,13 @@ from pathlib import Path
 # 路径映射表 — 换机时修改这里
 # ============================================================
 MAPPINGS = [
-    # (旧路径, 新路径) — 同时处理正斜杠和反斜杠变体
+    # (旧路径, 新路径) — 三种斜杠变体都要覆盖
     (r"D:\obsidian\2026", r"E:\new_workspace\obsidian-2026"),
     (r"D:/obsidian/2026", r"E:/new_workspace/obsidian-2026"),
+    (r"D:\\obsidian\\2026", r"E:\\new_workspace\\obsidian-2026"),
     (r"C:\Users\chester.chen", r"C:\Users\admin"),
     (r"C:/Users/chester.chen", r"C:/Users/admin"),
+    (r"C:\\Users\\chester.chen", r"C:\\Users\\admin"),
     # (r"D:\workspace\AI-research\Horizon", r"<新路径>"),  # horizon 待定
 ]
 
@@ -39,7 +41,10 @@ EXCLUDE_GLOBS = (
 
 SCAN_GLOBS = ("*.md", "*.py", "*.yaml", "*.json", "*.sh", "*.bat", "*.mjs")
 
-SCAN_DIRS = ["skills", "plugins", "scripts", "hooks"]
+SCAN_DIRS = ["skills", "plugins", "scripts", "hooks", "memories", "profiles"]
+
+# Root-level config files (scanned separately since they're not in a subdirectory)
+ROOT_FILES = ["config.yaml", ".env"]
 
 DRY_RUN = "--dry-run" in sys.argv
 VERIFY = "--verify" in sys.argv
@@ -62,6 +67,7 @@ def should_skip(rel_path: str) -> bool:
 
 
 def scan_files(base: Path):
+    # Subdirectory scans
     for d in SCAN_DIRS:
         sd = base / d
         if not sd.exists():
@@ -71,6 +77,11 @@ def scan_files(base: Path):
                 rel = str(fp.relative_to(base))
                 if not should_skip(rel):
                     yield fp, rel
+    # Root-level files
+    for name in ROOT_FILES:
+        fp = base / name
+        if fp.exists():
+            yield fp, name
 
 
 def main():
