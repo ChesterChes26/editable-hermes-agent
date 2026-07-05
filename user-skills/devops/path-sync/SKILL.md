@@ -84,6 +84,12 @@ python skills/devops/path-sync/scripts/localize.py
 
 `*.lock`, `*.hub`, `*.bundled_manifest`, `.usage.json`, `__pycache__` — 运行时垃圾，永远不同步。
 
+同步后需手动确认并排除的目录：
+- `user-skills/apple/` — 上游 bundled skill，非用户定制
+- `user-config/cron/output/` — cron 运行时输出
+- `user-config/cron/ticker_*` — cron 心跳/状态文件
+- `.env` — **绝不 commit**（含 API key）
+
 ## Pitfalls
 
 - **`cp -r skills/` 会带进上游技能**：apple 系列、`.curator_state` 是上游 bundled skill，不在用户定制范围。sync 后检查 `git status`，如出现则 `git rm --cached` + `rm -rf` 排除。
