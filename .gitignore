@@ -164,75 +164,61 @@ user-config/.env
 # === Junction Runtime Directories ===
 # user-skills/, user-plugins/, user-config/{hooks,scripts,memories}/ are junctions
 # to ~/.hermes/{skills,plugins,hooks,scripts,memories}/
-# Strategy: ignore all files, allow subdirs, then whitelist specific patterns
+# Strategy: ignore files at root, allow subdirs, then ignore specific unwanted patterns
 
-# Ignore all files in junction dirs (but allow subdirs with !*/)
+# --- user-skills/ ---
 user-skills/*
 !user-skills/*/
-user-plugins/*
-!user-plugins/*/
-user-config/hooks/*
-!user-config/hooks/*/
-user-config/scripts/*
-!user-config/scripts/*.py
-!user-config/scripts/*.sh
-!user-config/scripts/*.bat
-user-config/memories/*
-!user-config/memories/USER.md
 
-# Skills: ignore all files, but allow directory traversal at all depths
-user-skills/**
-!user-skills/*/
-!user-skills/*/*/
-!user-skills/*/*/*/
-!user-skills/*/*/*/*/
-
-# Un-ignore specific directories and their contents (all depths)
-!user-skills/**/references/
-!user-skills/**/references/**
-!user-skills/**/templates/
-!user-skills/**/templates/**
-!user-skills/**/scripts/
-!user-skills/**/scripts/**
-
-# Re-ignore runtime outputs (must come AFTER whitelist)
-user-skills/**/_example_snapshots/
-user-skills/**/snapshots/
+# Ignore privacy/runtime files at ANY depth
 user-skills/**/DESCRIPTION.md
+user-skills/**/MEMORY.md
+user-skills/**/snapshots/
+user-skills/**/_example_snapshots/
+user-skills/**/__pycache__/
+user-skills/**/*.pyc
+user-skills/**/*.lock
 user-skills/**/.usage.json
 user-skills/**/.bundled_manifest
 user-skills/**/.curator_state
 user-skills/**/.curator_backups/
 user-skills/**/.hub/
-user-skills/**/*.lock
 
-# Un-ignore specific files
-!user-skills/**/SKILL.md
+# --- user-plugins/ ---
+user-plugins/*
+!user-plugins/*/
 
-# Whitelist: Plugins (code + config)
-!user-plugins/*/*.py
-!user-plugins/*/plugin.yaml
-!user-plugins/*/README.md
-!user-plugins/*/requirements.txt
-!user-plugins/*/references/
-!user-plugins/*/references/**
+user-plugins/**/DESCRIPTION.md
+user-plugins/**/MEMORY.md
+user-plugins/**/__pycache__/
+user-plugins/**/*.pyc
+user-plugins/**/*.lock
+user-plugins/**/.usage.json
 
-# Whitelist: Hooks (code + config)
-!user-config/hooks/*/*.py
-!user-config/hooks/*/HOOK.yaml
-!user-config/hooks/*/README.md
+# --- user-config/hooks/ ---
+user-config/hooks/*
+!user-config/hooks/*/
 
-# Whitelist: Scripts (only .py/.sh/.bat)
+user-config/hooks/**/__pycache__/
+user-config/hooks/**/*.pyc
+
+# --- user-config/scripts/ ---
+user-config/scripts/*
 !user-config/scripts/*.py
 !user-config/scripts/*.sh
 !user-config/scripts/*.bat
 
-# Explicit exclusions (double insurance)
+# --- user-config/memories/ ---
+user-config/memories/*
+!user-config/memories/USER.md
+
 user-config/memories/MEMORY.md
 user-config/memories/*.lock
 
-# Profile memories contain sensitive data (tokens, account IDs)
+# --- Profile memories (contain sensitive data) ---
 user-config/profiles/*/memories/*
+
+# --- Global runtime artifacts ---
 *.pyc
 __pycache__/
 *.lock
