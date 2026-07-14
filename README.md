@@ -116,6 +116,26 @@ hermes update       # Update to the latest version
 hermes doctor       # Diagnose any issues
 ```
 
+### Local Editable Runtime Layout
+
+This fork keeps the mutable Hermes runtime directories in git through Windows
+junctions. The live runtime directories under `%LOCALAPPDATA%\hermes` point into
+this checkout:
+
+```text
+%LOCALAPPDATA%\hermes\skills   -> hermes-agent\customized-junction\skills
+%LOCALAPPDATA%\hermes\plugins  -> hermes-agent\customized-junction\plugins
+%LOCALAPPDATA%\hermes\hooks    -> hermes-agent\customized-junction\hooks
+%LOCALAPPDATA%\hermes\memories -> hermes-agent\customized-junction\memories
+%LOCALAPPDATA%\hermes\scripts  -> hermes-agent\customized-junction\scripts
+```
+
+The five junction targets are intentionally siblings under
+`customized-junction`. Runtime-only files such as `.hub`, `.usage.json`,
+`MEMORY.md`, snapshots, `__pycache__`, `*.pyc`, and `*.lock` are ignored by git.
+`%LOCALAPPDATA%\hermes\config.yaml` remains a normal runtime root file and is not
+covered by this junction set.
+
 📖 **[Full documentation →](https://hermes-agent.nousresearch.com/docs/)**
 
 ---

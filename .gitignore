@@ -24,6 +24,8 @@ hermes-e.bat
 .uv-cache/
 compose.hermes.local.yml
 export*
+!customized-junction/skills/creative/p5js/references/export-pipeline.md
+!customized-junction/skills/creative/p5js/scripts/export-frames.js
 __pycache__/model_tools.cpython-310.pyc
 __pycache__/web_tools.cpython-310.pyc
 logs/
@@ -162,62 +164,62 @@ infographic/
 user-config/.env
 
 # === Junction Runtime Directories ===
-# user-skills/, user-plugins/, user-config/{hooks,scripts,memories}/ are junctions
-# to ~/.hermes/{skills,plugins,hooks,scripts,memories}/
+# customized-junction/{skills,plugins,hooks,scripts,memories}/ are targets for
+# ~/.hermes/{skills,plugins,hooks,scripts,memories}/ junctions.
 # Strategy: ignore files at root, allow subdirs, then ignore specific unwanted patterns
 
-# --- user-skills/ ---
-user-skills/*
-!user-skills/*/
+# --- customized-junction/skills/ ---
+customized-junction/skills/*
+!customized-junction/skills/*/
 
 # Ignore privacy/runtime files at ANY depth
-user-skills/**/DESCRIPTION.md
-user-skills/**/MEMORY.md
-user-skills/**/snapshots/
-user-skills/**/_example_snapshots/
-user-skills/**/__pycache__/
-user-skills/**/*.pyc
-user-skills/**/*.lock
-user-skills/**/.usage.json
-user-skills/**/.bundled_manifest
-user-skills/**/.curator_state
-user-skills/**/.curator_backups/
-user-skills/**/.hub/
+customized-junction/skills/**/DESCRIPTION.md
+customized-junction/skills/**/MEMORY.md
+customized-junction/skills/**/snapshots/
+customized-junction/skills/**/_example_snapshots/
+customized-junction/skills/**/__pycache__/
+customized-junction/skills/**/*.pyc
+customized-junction/skills/**/*.lock
+customized-junction/skills/**/.usage.json
+customized-junction/skills/**/.bundled_manifest
+customized-junction/skills/**/.curator_state
+customized-junction/skills/**/.curator_backups/
+customized-junction/skills/**/.hub/
 
-# --- user-plugins/ ---
-user-plugins/*
-!user-plugins/*/
+# --- customized-junction/plugins/ ---
+customized-junction/plugins/*
+!customized-junction/plugins/*/
 
-user-plugins/**/DESCRIPTION.md
-user-plugins/**/MEMORY.md
-user-plugins/**/__pycache__/
-user-plugins/**/*.pyc
-user-plugins/**/*.lock
-user-plugins/**/.usage.json
+customized-junction/plugins/**/DESCRIPTION.md
+customized-junction/plugins/**/MEMORY.md
+customized-junction/plugins/**/__pycache__/
+customized-junction/plugins/**/*.pyc
+customized-junction/plugins/**/*.lock
+customized-junction/plugins/**/.usage.json
 
-# --- user-config/hooks/ ---
-user-config/hooks/*
-!user-config/hooks/*/
+# --- customized-junction/hooks/ ---
+customized-junction/hooks/*
+!customized-junction/hooks/*/
 
-user-config/hooks/**/__pycache__/
-user-config/hooks/**/*.pyc
+customized-junction/hooks/**/__pycache__/
+customized-junction/hooks/**/*.pyc
 
-# --- user-config/scripts/ ---
+# --- customized-junction/scripts/ ---
 # Ignore all files in scripts/
-user-config/scripts/*
+customized-junction/scripts/*
 # Un-ignore subdirectories first (so git can look inside)
-!user-config/scripts/*/
+!customized-junction/scripts/*/
 # Then un-ignore specific file types
-!user-config/scripts/*.py
-!user-config/scripts/*.sh
-!user-config/scripts/*.bat
+!customized-junction/scripts/*.py
+!customized-junction/scripts/*.sh
+!customized-junction/scripts/*.bat
 
-# --- user-config/memories/ ---
-user-config/memories/*
-!user-config/memories/USER.md
+# --- customized-junction/memories/ ---
+customized-junction/memories/*
+!customized-junction/memories/USER.md
 
-user-config/memories/MEMORY.md
-user-config/memories/*.lock
+customized-junction/memories/MEMORY.md
+customized-junction/memories/*.lock
 
 # --- Profile directories ---
 # Profile skills follow same rules as user-skills/
