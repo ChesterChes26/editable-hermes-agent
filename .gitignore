@@ -160,3 +160,68 @@ apps/desktop/demo/
 # pr-infographic-workflow reference (storage rule + lapse #8 / #COMMIT-1).
 infographic/
 user-config/.env
+
+# === Junction Runtime Directories ===
+# user-skills/, user-plugins/, user-config/{hooks,scripts,memories}/ are junctions
+# to ~/.hermes/{skills,plugins,hooks,scripts,memories}/
+# Use whitelist to track only safe files (no API keys, no runtime state)
+
+# Default: ignore everything in junction dirs, but allow subdirectories
+user-skills/*
+!user-skills/*/
+user-plugins/*
+!user-plugins/*/
+user-config/hooks/*
+!user-config/hooks/*/
+user-config/scripts/*
+!user-config/scripts/*.py
+!user-config/scripts/*.sh
+!user-config/scripts/*.bat
+!user-config/scripts/README.md
+user-config/memories/*
+!user-config/memories/USER.md
+
+# Whitelist: Skills (SKILL.md + references)
+!user-skills/*/SKILL.md
+!user-skills/*/references/
+!user-skills/*/references/**
+!user-skills/*/templates/
+!user-skills/*/templates/**
+!user-skills/*/scripts/
+!user-skills/*/scripts/**
+
+# Exclude: Runtime outputs and generated files
+user-skills/*/snapshots/
+user-skills/*/_example_snapshots/
+user-skills/*/DESCRIPTION.md
+user-skills/*/*.lock
+user-skills/*/.usage.json
+user-skills/*/.bundled_manifest
+user-skills/*/.curator_state
+user-skills/*/.curator_backups/
+user-skills/*/.hub/
+
+# Whitelist: Plugins (code + config)
+!user-plugins/*/*.py
+!user-plugins/*/plugin.yaml
+!user-plugins/*/README.md
+!user-plugins/*/requirements.txt
+!user-plugins/*/references/
+!user-plugins/*/references/**
+
+# Whitelist: Hooks (code + config)
+!user-config/hooks/*/*.py
+!user-config/hooks/*/HOOK.yaml
+!user-config/hooks/*/README.md
+
+# Explicit exclusions (double insurance)
+user-config/memories/MEMORY.md
+user-config/memories/*.lock
+*.pyc
+__pycache__/
+*.lock
+.usage.json
+.bundled_manifest
+.curator_state
+.curator_backups/
+.hub/
