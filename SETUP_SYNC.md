@@ -27,7 +27,6 @@ Hermes 读写 runtime 目录，Git track repo 里的 user-* junction。
 | 目录/文件 | 内容 |
 |----------|------|
 | `user-skills/*/SKILL.md` | Skill 定义 |
-| `user-skills/*/DESCRIPTION.md` | Skill 描述 |
 | `user-skills/*/references/**` | Skill 参考资料 |
 | `user-skills/*/templates/**` | Skill 模板 |
 | `user-plugins/*/*.py` | Plugin 代码 |
@@ -45,15 +44,19 @@ Hermes 读写 runtime 目录，Git track repo 里的 user-* junction。
 
 | 目录/文件 | 原因 |
 |----------|------|
-| `user-config/config.yaml` | 包含 API keys |
+| `user-config/config.yaml` | 包含 API keys，不 track |
 | `user-config/memories/MEMORY.md` | 技术笔记，不进 Git |
 | `user-config/memories/*.lock` | 运行时锁文件 |
 | `user-config/profiles/*/memories/*` | 包含 Bearer token（worker） |
 | `user-config/profiles/*/config.yaml` | 包含 API keys |
 | `user-config/profiles/*/.env` | 环境变量 |
-| `user-config/cron/jobs.json` | 运行状态频繁变化 |
+| `user-config/profiles/worker/skills/` | Worker profile 的 skills，不 track |
+| `user-config/cron/jobs.json` | 运行状态频繁变化，不 track |
 | `user-config/cron/output/` | Cron 执行输出 |
 | `user-config/cron/*.lock` | 锁文件 |
+| `user-skills/*/DESCRIPTION.md` | 自动生成的分类描述 |
+| `user-skills/*/snapshots/` | 运行时截图输出 |
+| `user-skills/*/_example_snapshots/` | 示例数据 |
 | `*.pyc`, `__pycache__/` | Python 字节码 |
 | `.usage.json`, `.bundled_manifest` | 运行时状态 |
 
@@ -227,11 +230,11 @@ hermes gateway start
 | 误提交隐私文件 | 白名单 .gitignore + pre-commit hook 检查 |
 | Junction 路径硬编码 | 恢复脚本动态生成 |
 
-## 待确认
+## 已确认决定
 
-1. **config.yaml**：是否需要 track 脱敏模板？还是完全不 track？
-2. **profiles/worker/skills/**：是否 track？（worker profile 的 skills）
-3. **cron/jobs.json**：是否 track job 定义部分？还是完全不 track？
+1. **config.yaml**：不 track。Runtime 配置包含 API keys，由用户手动管理。
+2. **profiles/worker/skills/**：不 track。Worker profile 的 skills 不进 Git。
+3. **cron/jobs.json**：不 track。Cron 任务定义和运行状态频繁变化，不适合版本控制。
 
 ## 日常使用
 
