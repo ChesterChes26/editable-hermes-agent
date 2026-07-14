@@ -164,9 +164,9 @@ user-config/.env
 # === Junction Runtime Directories ===
 # user-skills/, user-plugins/, user-config/{hooks,scripts,memories}/ are junctions
 # to ~/.hermes/{skills,plugins,hooks,scripts,memories}/
-# Use whitelist to track only safe files (no API keys, no runtime state)
+# Strategy: ignore all files, allow subdirs, then whitelist specific patterns
 
-# Default: ignore everything in junction dirs, but allow subdirectories
+# Ignore all files in junction dirs (but allow subdirs with !*/)
 user-skills/*
 !user-skills/*/
 user-plugins/*
@@ -177,29 +177,26 @@ user-config/scripts/*
 !user-config/scripts/*.py
 !user-config/scripts/*.sh
 !user-config/scripts/*.bat
-!user-config/scripts/README.md
 user-config/memories/*
 !user-config/memories/USER.md
 
-# Whitelist: Skills (SKILL.md + references)
-!user-skills/*/SKILL.md
-!user-skills/*/references/
-!user-skills/*/references/**
-!user-skills/*/templates/
-!user-skills/*/templates/**
-!user-skills/*/scripts/
-!user-skills/*/scripts/**
+# Skills: ignore all files, but allow directory traversal at all depths
+user-skills/**
+!user-skills/*/
+!user-skills/*/*/
+!user-skills/*/*/*/
+!user-skills/*/*/*/*/
 
-# Exclude: Runtime outputs and generated files
-user-skills/*/snapshots/
-user-skills/*/_example_snapshots/
-user-skills/*/DESCRIPTION.md
-user-skills/*/*.lock
-user-skills/*/.usage.json
-user-skills/*/.bundled_manifest
-user-skills/*/.curator_state
-user-skills/*/.curator_backups/
-user-skills/*/.hub/
+# Un-ignore specific directories and their contents (all depths)
+!user-skills/**/references/
+!user-skills/**/references/**
+!user-skills/**/templates/
+!user-skills/**/templates/**
+!user-skills/**/scripts/
+!user-skills/**/scripts/**
+
+# Un-ignore specific files
+!user-skills/**/SKILL.md
 
 # Whitelist: Plugins (code + config)
 !user-plugins/*/*.py
@@ -214,9 +211,17 @@ user-skills/*/.hub/
 !user-config/hooks/*/HOOK.yaml
 !user-config/hooks/*/README.md
 
+# Whitelist: Scripts (only .py/.sh/.bat)
+!user-config/scripts/*.py
+!user-config/scripts/*.sh
+!user-config/scripts/*.bat
+
 # Explicit exclusions (double insurance)
 user-config/memories/MEMORY.md
 user-config/memories/*.lock
+
+# Profile memories contain sensitive data (tokens, account IDs)
+user-config/profiles/*/memories/*
 *.pyc
 __pycache__/
 *.lock
