@@ -1,0 +1,51 @@
+# Path Migration Map
+# 
+# 本机: 填写 key (当前机器上的路径)，value 留空
+# 新机: pull 后填写 value (新机器上的路径)，然后运行 migrate-paths.py
+#
+# 脚本逻辑: 对于 key-value 都不为空的条目，把文件中所有 key 替换为 value
+# 替换是幂等的: 替换后文件中不再包含 key，再次运行不会重复替换
+
+mappings:
+  # Hermes runtime
+  - key: "C:\\Users\\chester.chen\\AppData\\Local\\hermes"
+    value: ""
+  
+  - key: "C:/Users/chester.chen/AppData/Local/hermes"
+    value: ""
+  
+  # Hermes source repo
+  - key: "C:\\Users\\chester.chen\\AppData\\Local\\hermes\\hermes-agent"
+    value: ""
+  
+  - key: "C:/Users/chester.chen/AppData/Local/hermes/hermes-agent"
+    value: ""
+  
+  # MSYS2 style paths
+  - key: "/c/Users/chester.chen/AppData/Local/hermes"
+    value: ""
+  
+  # Obsidian vault
+  - key: "D:\\obsidian\\2026"
+    value: ""
+  
+  - key: "D:/obsidian/2026"
+    value: ""
+  
+  # Workspace
+  - key: "D:\\workspace"
+    value: ""
+  
+  - key: "D:/workspace"
+    value: ""
+  
+  # Node.js
+  - key: "C:\\Program Files\\nodejs"
+    value: ""
+  
+  # User home
+  - key: "C:\\Users\\chester.chen"
+    value: ""
+  
+  - key: "C:/Users/chester.chen"
+    value: ""
