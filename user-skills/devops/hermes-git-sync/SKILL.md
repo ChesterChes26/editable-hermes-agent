@@ -18,7 +18,6 @@ skills in one place.
 ## Related references
 
 - `references/claude-to-hermes-adaptation.md` — Claude Code skill → Hermes 适配清单（工具前缀、pid/window_id、路径、token 追踪）
-- `references/junction-gitignore.md` — 白名单 .gitignore 模板（junction 方案用）
 
 ## Triggers
 
@@ -121,46 +120,41 @@ git push origin <branch-name>
 Add a restore guide at repo root. See `references/setup-template.md` for a
 ready-to-use template.
 
-## Restore on new machine (junction-based)
+## Restore on new machine
 
 ```bash
-# 1. Install Hermes first, then:
+# Install Hermes first, then:
 git clone https://github.com/<user>/hermes-agent.git ~/.hermes/hermes-agent
 cd ~/.hermes/hermes-agent
 git checkout <branch-name>
 
-# 2. Create empty runtime directories
+# Sync all five runtime directories (see incremental sync for rationale):
 cd ~/.hermes
-mkdir -p skills plugins hooks scripts memories
+mkdir -p plugins
+cp -r hermes-agent/user-plugins/* plugins/
 
-# 3. Create reverse junctions (runtime → repo)
-# Windows PowerShell:
-New-Item -ItemType Junction -Path skills -Target hermes-agent\user-skills
-New-Item -ItemType Junction -Path plugins -Target hermes-agent\user-plugins
-New-Item -ItemType Junction -Path hooks -Target hermes-agent\user-config\hooks
-New-Item -ItemType Junction -Path scripts -Target hermes-agent\user-config\scripts
-New-Item -ItemType Junction -Path memories -Target hermes-agent\user-config\memories
+rm -rf skills
+cp -r hermes-agent/user-skills skills
 
-# Windows CMD:
-mklink /J skills hermes-agent\user-skills
-mklink /J plugins hermes-agent\user-plugins
-mklink /J hooks hermes-agent\user-config\hooks
-mklink /J scripts hermes-agent\user-config\scripts
-mklink /J memories hermes-agent\user-config\memories
+mkdir -p hooks
+cp -r hermes-agent/user-config/hooks/* hooks/
 
-# 4. Verify junctions work
-ls skills/  # should show skill directories
-ls plugins/ # should show plugin directories
+mkdir -p scripts
+cp hermes-agent/user-config/scripts/* scripts/
 
-# 5. Manually restore .env (NEVER in git)
-# Copy .env from backup or create new one with API keys
+mkdir -p memories
+cp hermes-agent/user-config/memories/* memories/
+
+cp hermes-agent/user-config/config.yaml config.yaml
+cp hermes-agent/user-config/cron/jobs.json cron/
+
+# Worker profile (if exists)
+rm -rf profiles/worker && mkdir -p profiles/worker
+cp hermes-agent/user-config/profiles/worker/config.yaml profiles/worker/
+cp -r hermes-agent/user-config/profiles/worker/skills profiles/worker/skills
+
+# Manually restore .env (NEVER in git)
 ```
-
-**Why junctions instead of copy?**
-- Files live in repo, junctions point to them
-- `git pull` updates files, Hermes sees changes immediately
-- No manual sync needed between runtime and repo
-- `git status` in repo shows real state
 
 ## Updating from upstream
 
@@ -372,35 +366,32 @@ was saved, and the 5-pair diff was unreliable for agents.
 truth. There is only 1 repo. Runtime must read from `user-*`, not from a
 separate copy.
 
-Full implementation plan: see `SETUP_SYNC.md` in repo root.
+### Implementation paths (choose one)
 
-### Implementation: Reverse junction (chosen path)
-
-**CRITICAL: Junction direction matters for multi-machine sync**
+**Path A — Reverse junction (simpler, no config change):**
 
 ```text
-~/.hermes/skills/              → junction → ~/.hermes/hermes-agent/user-skills/
-~/.hermes/plugins/             → junction → ~/.hermes/hermes-agent/user-plugins/
-~/.hermes/hooks/               → junction → ~/.hermes/hermes-agent/user-config/hooks/
-~/.hermes/scripts/             → junction → ~/.hermes/hermes-agent/user-config/scripts/
-~/.hermes/memories/            → junction → ~/.hermes/hermes-agent/user-config/memories/
+~/.hermes/skills/   → junction → ~/.hermes/hermes-agent/user-skills/
+~/.hermes/plugins/  → junction → ~/.hermes/hermes-agent/user-plugins/
+~/.hermes/hooks/    → junction → ~/.hermes/hermes-agent/user-config/hooks/
+~/.hermes/scripts/  → junction → ~/.hermes/hermes-agent/user-config/scripts/
+~/.hermes/memories/ → junction → ~/.hermes/hermes-agent/user-config/memories/
 ```
 
-**Direction: runtime → repo (NOT repo → runtime)**
-
 - Hermes reads `~/.hermes/skills/` as before, but actual files live in repo
-- Git tracks junction contents on Windows (treats as normal directory)
+- Git can track junction contents on Windows (treats as normal directory)
 - `git status` in hermes-agent repo shows real runtime state
-- **Multi-machine sync works**: new machine pulls repo, creates junctions pointing to repo dirs
+- Risk: junctions can be silently replaced with real dirs by some tools
 
-**Why direction matters:**
-- ❌ Wrong: `repo/user-skills/ → runtime/skills/` — Git creates empty dirs on new machine, runtime is empty
-- ✅ Correct: `runtime/skills/ → repo/user-skills/` — Git has files, junction points to them
+**Path B — Hermes reads user-* directly (cleaner, needs config):**
+
+Set Hermes config/env to point skills/plugins paths at `user-skills/`,
+`user-plugins/`, etc. inside the repo. No junctions needed.
 
 ### What this means for the old workflow
 
 - The 5-pair diff + `cp -r` sync below is **DEPRECATED** — do not use for new setups
-- Existing setups still need it until migrated to junction
+- Existing setups still need it until migrated to junction or direct-read
 - `git status` in hermes-agent should become the single source of truth
 
 ### Junction caveats on Windows
@@ -410,85 +401,6 @@ Full implementation plan: see `SETUP_SYNC.md` in repo root.
 - Some tools (rm -rf + recreate) can replace junction with real dir silently
 - New machine restore needs junction recreation script
 - `mklink /J <link> <target>` for directories; no admin needed
-
-### .gitignore whitelist pattern (working approach)
-
-**Problem**: Default deny + explicit allow doesn't work with `dir/*` because Git won't traverse into subdirs.
-
-**Solution**: Three-layer pattern:
-1. `dir/*` — ignore files at root
-2. `!dir/*/` — allow traversal into subdirs
-3. `dir/**/PATTERN` — ignore specific files at any depth
-
-**Example for user-skills:**
-```gitignore
-# Layer 1: Ignore files at root
-user-skills/*
-
-# Layer 2: Allow traversal into subdirs
-!user-skills/*/
-
-# Layer 3: Ignore specific patterns at any depth
-user-skills/**/DESCRIPTION.md
-user-skills/**/snapshots/
-user-skills/**/_example_snapshots/
-user-skills/**/__pycache__/
-user-skills/**/*.pyc
-user-skills/**/*.lock
-user-skills/**/.usage.json
-user-skills/**/.bundled_manifest
-user-skills/**/.curator_state
-user-skills/**/.curator_backups/
-user-skills/**/.hub/
-
-# Then whitelist what to track
-!user-skills/*/SKILL.md
-!user-skills/*/references/
-!user-skills/*/references/**
-!user-skills/*/templates/
-!user-skills/*/templates/**
-```
-
-**Key insight**: Order matters. `!dir/*/` must come BEFORE `dir/**/PATTERN` for traversal to work.
-
-### Privacy file rules (what to track vs not)
-
-**Use whitelist .gitignore strategy** — default deny, explicitly allow safe files.
-
-#### ✅ Track (safe)
-
-| File | Content |
-|------|---------|
-| `user-skills/*/SKILL.md` | Skill definitions |
-| `user-skills/*/references/**` | Skill reference docs |
-| `user-skills/*/templates/**` | Skill templates |
-| `user-plugins/*/*.py` | Plugin source code |
-| `user-plugins/*/plugin.yaml` | Plugin config |
-| `user-config/hooks/*/*.py` | Hook source code |
-| `user-config/scripts/*.py` | Scripts |
-| `user-config/memories/USER.md` | User preferences (default profile only) |
-
-#### ❌ Do NOT track
-
-| File | Reason |
-|------|--------|
-| `user-config/config.yaml` | Contains API keys |
-| `user-config/memories/MEMORY.md` | Technical notes, not for Git |
-| `user-config/memories/*.lock` | Runtime lock files |
-| `user-config/profiles/*/memories/*` | Contains Bearer tokens (worker), platform account IDs |
-| `user-config/profiles/*/config.yaml` | Contains API keys per profile |
-| `user-config/profiles/*/.env` | Environment variables |
-| `user-config/cron/jobs.json` | Runtime state changes frequently |
-| `user-config/cron/output/` | Cron execution output |
-| `*.pyc`, `__pycache__/` | Python bytecode |
-| `.usage.json`, `.bundled_manifest` | Runtime state |
-| `.hub/`, `.curator_state`, `.curator_backups/` | Runtime caches |
-
-#### Key insight: memories/ handling
-
-- **Default profile `USER.md`**: Track — contains user preferences, no secrets
-- **Default profile `MEMORY.md`**: Do NOT track — technical notes
-- **All `profiles/*/memories/*`**: Do NOT track — worker profile contains Bearer token (`Authorization: Bearer tnjIud...`), WeChat/QQ account IDs
 
 ## Pitfalls
 
