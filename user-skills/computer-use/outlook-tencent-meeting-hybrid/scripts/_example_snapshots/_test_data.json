@@ -1,0 +1,20 @@
+{
+  "subject": "Q3 Product Roadmap Review",
+  "to": "alice@example.com; bob@example.com",
+  "start": "2026-07-06 14:00",
+  "end": "2026-07-06 15:30",
+  "meeting_link": "https://meeting.tencent.com/dm/123456789",
+  "meeting_id": "123-456-789",
+  "waiting_room": true,
+  "steps": [
+    {"name": "Step 1", "desc": "Confirm Classic Outlook + Clear Popups", "status": "✓", "snapshot": "D:/workspace/outlook-tencent-metting/.claude/skills/computer-use/outlook-tencent-meeting-hybrid/scripts/_example_snapshots/step1_main.png"},
+    {"name": "Step 2", "desc": "Schedule Meeting + Waiting Room", "status": "✓", "snapshot": "D:/workspace/outlook-tencent-metting/.claude/skills/computer-use/outlook-tencent-meeting-hybrid/scripts/_example_snapshots/step2_schedule.png"},
+    {"name": "Step 3", "desc": "COM Compose Meeting Invite", "status": "✓", "snapshot": "D:/workspace/outlook-tencent-metting/.claude/skills/computer-use/outlook-tencent-meeting-hybrid/scripts/_example_snapshots/step3_compose.png"},
+    {"name": "Step 4", "desc": "COM Send Invitation", "status": "✓", "snapshot": "D:/workspace/outlook-tencent-metting/.claude/skills/computer-use/outlook-tencent-meeting-hybrid/scripts/_example_snapshots/step4_send.png"},
+    {"name": "Step 5", "desc": "Calendar Verification", "status": "✓", "snapshot": "D:/workspace/outlook-tencent-metting/.claude/skills/computer-use/outlook-tencent-meeting-hybrid/scripts/_example_snapshots/step5_calendar.png"}
+  ],
+  "token_usage": {"input": 28450, "output": 3210, "total": 31660},
+  "duration": "2m 15s",
+  "lang": "en",
+  "snapshot_dir": "D:/workspace/outlook-tencent-metting/.claude/skills/computer-use/outlook-tencent-meeting-hybrid/scripts/_example_snapshots"
+}

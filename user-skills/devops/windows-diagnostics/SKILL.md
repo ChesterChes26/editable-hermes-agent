@@ -98,6 +98,12 @@ Memory Compression over 2 GB WorkingSet suggests significant memory pressure. Co
 
 See `references/event-log-ids.md` for the full reference.
 
+## Network proxy diagnostics
+
+See `references/winhttp-proxy.md` for WinHTTP vs WinINET proxy layers, Outlook connectivity, and ODT.
+
+See `references/clash-proxy-residual.md` for Clash ProxyServer registry residual diagnosis — third-party proxy apps leaking `ProxyServer` value after exit, causing selective application connectivity failure.
+
 ## Office/Outlook connectivity & WinHTTP proxy
 
 See `references/winhttp-proxy.md` for the full reference on WinHTTP vs WinINET proxy layers, Outlook "No Network Connection" (WinHTTP missing proxy), `0x80190001` sign-in error (WebView2 AppContainer + localhost proxy), and ODT CAB extraction.

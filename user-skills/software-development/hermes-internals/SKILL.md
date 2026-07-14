@@ -137,6 +137,12 @@ detection, call_llm vs raw client paths, and failure modes (hard RuntimeError
 at init, 3-retry jittered backoff at per-summary level) — see
 `references/trajectory-compressor-provider.md`.
 
+For the provider model override mechanism — how `agent.model` is resolved
+from `providers.<name>.model` (overriding `model.default`) at init time in
+`agent/agent_init.py`, so system prompt and API request body show the actual
+model the provider will serve — see
+`references/provider-model-override.md`.
+
 ## Key Branch Points
 
 ### The only decision in the agent loop

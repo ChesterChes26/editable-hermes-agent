@@ -12,6 +12,13 @@ agentmemory 是 Rohit Ghumare 的本地 session 记忆系统（23K stars），�
 
 ## 安装（Windows Docker 路径）
 
+**⚠ 工具数影响：** agentmemory MCP server (`@agentmemory/mcp`) 暴露 ~50 个工具
+到 Hermes 的 API 请求中。某些 AI gateway（QB 限 128）可能因此拒绝请求
+（`HTTP 400: tools array too long, 134 > 128`）。如果遇到此问题，临时移除
+`mcp_servers.agentmemory` 不影响 memory provider 功能——memory 工具走的是内部
+MemoryProvider 接口，不经过 MCP。详见 `hermes-provider-setup` 的
+`references/tool-limit-providers.md`。
+
 Windows 上 iii-engine（Rust 二进制）没有原生 x86_64 构建，必须用 Docker。
 
 ```bash

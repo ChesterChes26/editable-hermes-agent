@@ -67,7 +67,7 @@ event = MessageEvent(
 ## Env Var
 
 ```
-OBSIDIAN_VAULT_PATH=$OBSIDIAN_VAULT
+OBSIDIAN_VAULT_PATH=D:/obsidian/2026
 ```
 
 The vault must exist with `inbox/` and `inbox/assets/` subdirectories.

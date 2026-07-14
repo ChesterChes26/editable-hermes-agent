@@ -12,25 +12,14 @@ import threading
 # Constants
 # ---------------------------------------------------------------------------
 
-HORIZON_CWD = r"$HORIZON_HOME"
-HORIZON_VENV = os.path.join(HORIZON_CWD, ".venv")
-HORIZON_PYTHON = os.path.join(HORIZON_VENV, "Scripts", "python.exe")
-HORIZON_CMD = [HORIZON_PYTHON, "-m", "src.mcp.server"]
+HORIZON_CWD = "D:/workspace/AI-research/Horizon"
+HORIZON_CMD = [sys.executable or "python", "-m", "src.mcp.server"]
 HORIZON_ENV = {
     **os.environ,
     "PYTHONUTF8": "1",
 }
 PER_TOOL_TIMEOUT = 900  # 15 min without a single stdout line → assume hung
 STDERR_LOG = os.path.expandvars(r"%TEMP%\horizon_stderr.log")
-
-
-def _ensure_venv() -> None:
-    """Create Horizon's own venv + install deps if it doesn't exist."""
-    if os.path.exists(HORIZON_PYTHON):
-        return
-    import subprocess as _sp
-    _sp.run([sys.executable or "python", "-m", "venv", HORIZON_VENV], check=True)
-    _sp.run([HORIZON_PYTHON, "-m", "pip", "install", "-e", HORIZON_CWD], check=True)
 
 # ---------------------------------------------------------------------------
 # Subprocess management (lazy start, restart on death)
@@ -85,7 +74,6 @@ def _ensure_proc() -> subprocess.Popen:
             _proc = None
 
         if _proc is None:
-            _ensure_venv()
             _stderr_fh = open(STDERR_LOG, "a", encoding="utf-8", errors="replace")
             _proc = subprocess.Popen(
                 HORIZON_CMD,
@@ -119,7 +107,7 @@ def _ensure_proc() -> subprocess.Popen:
                         "within 30s"
                     )
                 if not line:
-                    raise EOFError(f"MCP subprocess closed stdout during initialize (CMD={HORIZON_CMD[0]})")
+                    raise EOFError("MCP subprocess closed stdout during initialize")
                 resp = json.loads(line)
                 if "error" in resp:
                     err_msg = resp["error"].get("message", str(resp["error"]))

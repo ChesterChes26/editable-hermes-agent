@@ -15,6 +15,11 @@ Make your Hermes setup fully version-controlled and machine-portable by forking
 hermes-agent to a private GitHub repo and tracking source patches, plugins, and
 skills in one place.
 
+## Related references
+
+- `references/claude-to-hermes-adaptation.md` — Claude Code skill → Hermes 适配清单（工具前缀、pid/window_id、路径、token 追踪）
+- `references/junction-gitignore.md` — 白名单 .gitignore 模板（junction 方案用）
+
 ## Triggers
 
 - "同步 hermse 到 github" / "能不能把 hermse 配置做成 git 仓库" / "备份 hermse 所有改动"
@@ -22,6 +27,27 @@ skills in one place.
 - "本机hermes"（区别于 D 盘/workspace 的开发 clone） / "当前hermes需要切到main分支拉取上游最新code"
 - "换机器怎么还原 hermse"
 - "SETUP.md 更新" / "更新 SETUP"
+- "当前 runtime 是不是一个 repo" / "配置都 push 了吗" / "git status clean 但 runtime 还有没有差异"
+- "回归最简单方式" / "是否应该让 runtime 状态就是 Git 状态"
+- "只维护1份repo" / "user-* 就是 truth" / "反向 junction"
+- "两层目录漂移" / "git status clean 但 runtime 不一样"
+
+## First: answer the repo-state question precisely
+
+When the user asks whether the current Hermes runtime is tracked, do not collapse
+"source checkout" and "runtime home" into one concept. Verify and state both:
+
+- `~/AppData/Local/hermes/hermes-agent/` is the single Git repo for source + `user-*`
+- `~/AppData/Local/hermes/` is the runtime home (not a git repo)
+
+**Current architecture (transitional):** two-layer with `user-*` mirrors.
+**Target architecture:** single-repo truth — `user-*` IS the truth, runtime reads
+from it via junction or direct config. See "Architecture Decision" section below.
+
+A complete answer needs both checks:
+
+1. repo status/ahead-behind for `hermes-agent/`
+2. runtime-vs-mirror diff (only until migration to junction/direct-read is done)
 
 ## What gets tracked
 
@@ -30,11 +56,13 @@ skills in one place.
 | Source patches (weixin.py, qqbot, agent_init.py) | Yes | Committed directly in modified files |
 | Custom plugins (agentmemory, etc.) | Yes | `user-plugins/<name>/` |
 | All installed skills | Yes | `user-skills/` (exclude `.hub/`, `.curator_backups/`, `__pycache__/`) |
-| `config.yaml` | No | Contains API key references — handle separately |
+| `config.yaml` | Yes, sanitized mirror | `user-config/config.yaml` — runtime may contain live provider settings/API keys; sanitize before commit |
+| Cron jobs | Yes, with judgment | `user-config/cron/jobs.json` — sync definitions, but review noisy counters/timestamps before committing |
+| Worker profile | Yes, sanitized mirror | `user-config/profiles/worker/` |
 | `.env` | No | NEVER commit — contains raw API keys |
+| `auth.json` | No | OAuth tokens |
 | `state.db` | No | Session history with user PII |
 | `channel_directory.json` | No | WeChat/QQ user openids |
-| `auth.json` | No | OAuth tokens |
 
 ## Step 1: Fork to GitHub
 
@@ -101,11 +129,7 @@ git clone https://github.com/<user>/hermes-agent.git ~/.hermes/hermes-agent
 cd ~/.hermes/hermes-agent
 git checkout <branch-name>
 
-# 0. Create path-vars.yaml from template
-cp user-config/path-vars.template.yaml ~/.hermes/path-vars.yaml
-# Edit: set HOME, HERMES_HOME, OBSIDIAN_VAULT to local paths
-
-# Sync all five runtime directories:
+# Sync all five runtime directories (see incremental sync for rationale):
 cd ~/.hermes
 mkdir -p plugins
 cp -r hermes-agent/user-plugins/* plugins/
@@ -130,13 +154,24 @@ rm -rf profiles/worker && mkdir -p profiles/worker
 cp hermes-agent/user-config/profiles/worker/config.yaml profiles/worker/
 cp -r hermes-agent/user-config/profiles/worker/skills profiles/worker/skills
 
-# 6. Localize portable $VAR references to this machine's paths
-python skills/devops/path-sync/scripts/localize.py
-
 # Manually restore .env (NEVER in git)
 ```
 
 ## Updating from upstream
+
+Before updating, verify you are operating on the runtime checkout, not a workspace clone or the wrong Python environment. On Windows, the authoritative evidence is the `hermes` entrypoint plus imports through the runtime venv Python:
+
+```bash
+which hermes
+"/c/Users/chester.chen/AppData/Local/hermes/hermes-agent/venv/Scripts/python.exe" - <<'PY'
+for m in ["hermes_cli.main", "run_agent", "hermes_constants"]:
+    mod = __import__(m, fromlist=["*"])
+    print(m, getattr(mod, "__file__", None))
+PY
+"/c/Users/chester.chen/AppData/Local/hermes/hermes-agent/venv/Scripts/hermes" --version
+```
+
+If those imports resolve to `C:\Users\chester.chen\AppData\Local\hermes\hermes-agent\...`, update that repo. Do not rely on system `python` imports; outside the venv it may not have `hermes_cli` or `run_agent` on `sys.path`.
 
 Full end-to-end workflow — fetch upstream, merge into main and custom branch, rebuild, restart:
 
@@ -250,30 +285,9 @@ After syncing all directories, verify SETUP.md reflects the current state:
 - `user-skills/` path is correct
 - Restore step copies `user-plugins/*` (wildcard, not hardcoded names)
 
-### Step P5: Canonicalize paths（路径格式化）
+### Step P5: Commit + Push
 
-在 commit 前，将本机绝对路径替换为 `$VAR` 占位符（让 git 中的文件跨机器可移植）：
-
-```bash
-cd hermes-agent
-HERMES_HOME=$(echo $HERMES_HOME) \
-python $HERMES_HOME/skills/devops/path-sync/scripts/canonicalize.py
-```
-
-验证无裸路径残留：
-```bash
-# 检查是否有本机用户名残留
-grep -r "C:\\\\Users\\\\admin" user-skills/ user-plugins/ user-config/ --include="*.md" --include="*.py" | wc -l
-# → 应为 0
-
-# 检查 $VAR 占位符正确生成
-grep -r '\$HOME\|\$HERMES_HOME\|\$OBSIDIAN_VAULT' user-skills/ user-config/ --include="*.md" | wc -l
-# → 应有几十行
-```
-
-### Step P6: Commit + Push
-
-Only after P1-P5 are all clean or synced:
+Only after P1-P4 are all clean or synced:
 
 ```bash
 cd hermes-agent
@@ -283,7 +297,7 @@ git -c http.proxy=http://127.0.0.1:7897 push origin chester
 ```
 
 **Anti-pattern:** DO NOT skip the 5-pair diff when `git status` shows clean — runtime
-divergence is invisible to `git status`.  Every commit+push must be preceded by P1-P5.
+divergence is invisible to `git status`.  Every commit+push must be preceded by P1-P4.
 
 ```bash
 cd ~/AppData/Local/hermes  # Windows (macOS: ~/.hermes)
@@ -327,14 +341,101 @@ git config http.proxy http://127.0.0.1:7897   # if needed
 git push origin chester
 ```
 
-**Garbage exclusion**: lock files (`.lock`), skill/plugin caches (`.hub`,
-`.bundled_manifest`, `.curator_backups`, `.usage.json`), and Python bytecode
-(`__pycache__`) are runtime artifacts — never copy them to git.
-After `cp -r memories/ hermes-agent/user-config/memories/`, strip locks:
-`rm -f hermes-agent/user-config/memories/*.lock`.
+# Garbage to strip after every cp -r (runtime artifacts, never commit)
+_STRIP_GARBAGE=(
+  ".hub"
+  ".bundled_manifest"
+  ".curator_backups"
+  ".curator_state"
+  ".usage.json"
+  ".usage.json.lock"
+  "*.lock"
+  "__pycache__"
+)
 
 **Note on `skills/computer-use`**: this is an upstream bundled skill that may
 appear in runtime `skills/` but not in `user-skills/`. It does NOT need syncing.
+
+## Architecture Decision: Single-Repo Truth (2026-07-14)
+
+The two-layer `user-*` mirror design (runtime dirs separate from git-tracked
+`user-config/user-skills/user-plugins`, synced manually via `cp -r`) has been
+**abandoned**. It failed in practice: `git status clean` did not mean runtime
+was saved, and the 5-pair diff was unreliable for agents.
+
+**New invariant:** `user-*` directories in the hermes-agent repo ARE the single
+truth. There is only 1 repo. Runtime must read from `user-*`, not from a
+separate copy.
+
+Full implementation plan: see `SETUP_SYNC.md` in repo root.
+
+### Implementation: Reverse junction (chosen path)
+
+```text
+~/.hermes/skills/              → junction → ~/.hermes/hermes-agent/user-skills/
+~/.hermes/plugins/             → junction → ~/.hermes/hermes-agent/user-plugins/
+~/.hermes/hooks/               → junction → ~/.hermes/hermes-agent/user-config/hooks/
+~/.hermes/scripts/             → junction → ~/.hermes/hermes-agent/user-config/scripts/
+~/.hermes/memories/USER.md     → junction → ~/.hermes/hermes-agent/user-config/memories/USER.md
+```
+
+- Hermes reads `~/.hermes/skills/` as before, but actual files live in repo
+- Git can track junction contents on Windows (treats as normal directory)
+- `git status` in hermes-agent repo shows real runtime state
+- Risk: junctions can be silently replaced with real dirs by some tools
+
+### What this means for the old workflow
+
+- The 5-pair diff + `cp -r` sync below is **DEPRECATED** — do not use for new setups
+- Existing setups still need it until migrated to junction
+- `git status` in hermes-agent should become the single source of truth
+
+### Junction caveats on Windows
+
+- Git tracks junction contents normally — `git add user-skills/` works
+- Junctions require the target to exist before creation
+- Some tools (rm -rf + recreate) can replace junction with real dir silently
+- New machine restore needs junction recreation script
+- `mklink /J <link> <target>` for directories; no admin needed
+
+### Privacy file rules (what to track vs not)
+
+**Use whitelist .gitignore strategy** — default deny, explicitly allow safe files.
+
+#### ✅ Track (safe)
+
+| File | Content |
+|------|---------|
+| `user-skills/*/SKILL.md` | Skill definitions |
+| `user-skills/*/references/**` | Skill reference docs |
+| `user-skills/*/templates/**` | Skill templates |
+| `user-plugins/*/*.py` | Plugin source code |
+| `user-plugins/*/plugin.yaml` | Plugin config |
+| `user-config/hooks/*/*.py` | Hook source code |
+| `user-config/scripts/*.py` | Scripts |
+| `user-config/memories/USER.md` | User preferences (default profile only) |
+
+#### ❌ Do NOT track
+
+| File | Reason |
+|------|--------|
+| `user-config/config.yaml` | Contains API keys |
+| `user-config/memories/MEMORY.md` | Technical notes, not for Git |
+| `user-config/memories/*.lock` | Runtime lock files |
+| `user-config/profiles/*/memories/*` | Contains Bearer tokens (worker), platform account IDs |
+| `user-config/profiles/*/config.yaml` | Contains API keys per profile |
+| `user-config/profiles/*/.env` | Environment variables |
+| `user-config/cron/jobs.json` | Runtime state changes frequently |
+| `user-config/cron/output/` | Cron execution output |
+| `*.pyc`, `__pycache__/` | Python bytecode |
+| `.usage.json`, `.bundled_manifest` | Runtime state |
+| `.hub/`, `.curator_state`, `.curator_backups/` | Runtime caches |
+
+#### Key insight: memories/ handling
+
+- **Default profile `USER.md`**: Track — contains user preferences, no secrets
+- **Default profile `MEMORY.md`**: Do NOT track — technical notes
+- **All `profiles/*/memories/*`**: Do NOT track — worker profile contains Bearer token (`Authorization: Bearer tnjIud...`), WeChat/QQ account IDs
 
 ## Pitfalls
 

@@ -17,7 +17,7 @@ Every memory entry MUST be telegraphic. Drop articles, copulas, and filler. Use 
 
 | Bad (full sentence) | Good (telegraphic) |
 |---|---|
-| The Obsidian vault is located at $OBSIDIAN_VAULT | Obsidian vault: $OBSIDIAN_VAULT |
+| The Obsidian vault is located at D:\obsidian\2026 | Obsidian vault: D:\obsidian\2026 |
 | WeChat uses pairing mode for DM authorization | WeChat DM: pairing mode |
 | Reasonix is installed at ~/AppData/Roaming/npm/reasonix | Reasonix at ~/AppData/Roaming/npm/reasonix |
 | It supports ACP mode for delegation | ACP delegation via delegate_task(...) |
@@ -59,7 +59,7 @@ Do NOT archive entries that are still actively used — compression alone should
 
 For each stale entry:
 
-1. Save to Obsidian: `$OBSIDIAN_VAULT\hermes-memory\{YYYY-MM-DD}.md`
+1. Save to Obsidian: `D:\obsidian\2026\hermes-memory\{YYYY-MM-DD}.md`
 2. Remove from Hermes: `memory(action='remove', target='memory', old_text='...')`
 
 Archive format:
@@ -77,7 +77,7 @@ Archived from Hermes memory store to free capacity.
 
 EVERY compact pass MUST leave a record, even if nothing was archived (pure compression):
 
-Create or append to `$OBSIDIAN_VAULT\hermes-memory\{YYYY-MM-DD}.md` with:
+Create or append to `D:\obsidian\2026\hermes-memory\{YYYY-MM-DD}.md` with:
 
 ```markdown
 # Hermes Memory Compact — {YYYY-MM-DD}
@@ -101,6 +101,14 @@ If this was triggered by a rejected add, retry the add after logging.
 
 ## Pitfalls
 
+### Replace-at-limit deadlock
+
+When memory is at or near capacity, `replace` with a longer entry fails the same way `add` does — the char budget is checked on the FINAL result after all operations. A replace that grows an entry from 84→130 chars at 97% usage will fail because the post-replace total exceeds 2,200.
+
+**Fix:** when at capacity, batch removals first (free space), THEN replacements/additions in the same batch call. Example: `operations: [{action:'remove',...}, {action:'replace',...}]` — removal frees space before replacement is counted.
+
+The operations array is all-or-nothing and char-checked atomically, so ordering within the batch matters precisely for the budget calculation.
+
 ### Not loading the skill before acting
 
 Agent must call `skill_view('compact-memory')` BEFORE executing any compaction. Acting from memory alone leads to skipped phases and wrong log formats. The user expects the Obsidian log to match the prescribed Phase 4 table structure exactly — no extra prose, no missing columns.
@@ -120,5 +128,5 @@ Why not modify `memory_tool.py` to remove the 2,200 char limit or proxy to Obsid
 ## File Locations
 
 - **Source** (Hermes memory store): `~/AppData/Local/hermes/memories/MEMORY.md` + `USER.md`
-- **Archive log** (Obsidian): `$OBSIDIAN_VAULT\\hermes-memory\\{date}.md`
+- **Archive log** (Obsidian): `D:\\obsidian\\2026\\hermes-memory\\{date}.md`
 - See `references/hermes-memory-file-locations.md` for the full relationship and common misconceptions.

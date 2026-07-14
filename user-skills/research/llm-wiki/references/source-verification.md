@@ -112,7 +112,7 @@ enrichedChunks → NO reads found: 1 write, 0 reads ❌☠️
 A scope not in BM25+Vector index may still be heavily consumed via context injection.
 Always verify ALL consumption paths before calling data "wasted."
 
-Wiki at `$OBSIDIAN_VAULT/wiki/concepts(概念)/agentmemory-47-kv-scopes.md`.
+Wiki at `D:/obsidian/2026/wiki/concepts(概念)/agentmemory-47-kv-scopes.md`.
 Source at `~/.npm/_npx/<hash>/node_modules/@agentmemory/agentmemory/dist/index.mjs`.
 
 ### Findings

@@ -701,6 +701,45 @@ Reference MCP resources in chat: `@github:issue://123`
 - **Output tokens:** `export MAX_MCP_OUTPUT_TOKENS=50000` — cap output from MCP servers to prevent context flooding
 - **Transports:** `stdio` (local process), `http` (remote), `sse` (server-sent events)
 
+### MCP + Non-Anthropic API Backends
+
+When `ANTHROPIC_BASE_URL` is set to a third-party proxy (e.g., `https://api.deepseek.com/anthropic`), MCP tools may be **silently dropped**. The MCP server process starts normally, but tools never appear in the model's available tool list. This happens because:
+
+- Claude Code injects MCP tools as `mcp__<server>__<tool>` entries in the `tools` array of each API request
+- Third-party proxies may have internal limits on total tool count (cua-driver alone has 30+ tools; combined with built-ins this can exceed those limits)
+- Tool schemas from MCP dynamic registration may contain fields the proxy doesn't recognize
+
+**Diagnosis:** `claude mcp list` shows servers configured, but Claude never calls `mcp__*` tools and falls back to Bash+CLI workarounds.
+
+**Workaround:** For MCP-heavy tasks (desktop automation via cua-driver, database queries, etc.), use Hermes instead — Hermes manages its own tool registry and correctly passes MCP tools through DeepSeek's API. Claude Code stays best for coding; Hermes for tool orchestration.
+
+### MCP Configuration File Locations
+
+Claude Code reads MCP server definitions from only TWO places. Configuring elsewhere silently fails.
+
+| Location | Scope | Supported |
+|----------|-------|-----------|
+| `.mcp.json` (project root) | Project-level, git-tracked | ✅ Official recommendation |
+| `~/.claude.json` (user home) | User-level, all projects | ✅ Supported |
+| `.claude/settings.json` | Permission management only | ❌ Not for server definitions |
+| `.claude/mcp.json` | — | ❌ **Never read by Claude Code** |
+
+**Pitfall:** `.claude/mcp.json` is a common misconception. Claude Code's MCP launcher does NOT read this path. It may appear in AI tool output (because `Read` can access it), making it look like "config exists," but MCP servers defined there are silently ignored.
+
+**Official source:** docs.claude.com/en/docs/claude-code/mcp
+
+**Project root `.mcp.json` example:**
+```json
+{
+  "mcpServers": {
+    "cua-driver": {
+      "command": "C:\\Users\\chester.chen\\AppData\\Local\\Programs\\Cua\\cua-driver\\bin\\cua-driver.exe",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
 ## Monitoring Interactive Sessions
 
 ### Reading the TUI Status
@@ -762,6 +801,29 @@ Use `/context` in interactive mode to see a colored grid of context usage. Key t
 11. **`--bare` skips OAuth** — requires `ANTHROPIC_API_KEY` env var or an `apiKeyHelper` in settings.
 12. **Context degradation is real** — AI output quality measurably degrades above 70% context window usage. Monitor with `/context` and proactively `/compact`.
 13. **Review Claude's output for concurrency bugs before deploying** — Claude may use `threading.Lock` where reentrant access is needed (e.g., retry paths that call helper functions that also acquire the same lock → deadlock). Always review for `Lock` → `RLock` scenarios in subprocess management code with recovery/retry logic. See `references/hermes-plugin-over-mcp.md` for a concrete example.
+14. **MCP tools silently dropped when `ANTHROPIC_BASE_URL` points to DeepSeek's proxy** — Claude Code's MCP integration injects tools as `mcp__<server>__<tool>` into API requests. DeepSeek's `/anthropic` endpoint may silently drop or truncate these when tool count exceeds internal limits (cua-driver alone has 30+ tools, plus built-ins). The MCP server process starts and stays alive, but the model never sees the tools. `claude mcp list` confirms servers are configured. **Workaround:** use Hermes for MCP-dependent tasks (cua-driver desktop automation, etc.) — Hermes manages its own tool registry and correctly passes MCP tools through DeepSeek's API. Claude Code remains best for coding; Hermes for tool orchestration.
+15. **`.claude/mcp.json` is silently ignored** — Claude Code's MCP launcher only reads `.mcp.json` (project root) and `~/.claude.json` (user home). Defining MCP servers in `.claude/mcp.json` looks valid (AI tools can read it) but servers there are never loaded. Always use `.mcp.json` at project root.
+
+16. **Use absolute paths for `command` in `.mcp.json`** — even if the binary is on the system PATH (verified via `cmd.exe`), Claude Code launches MCP servers in a subprocess that may not inherit the full user PATH. Bare command names like `"cua-driver"` can fail with "command not found" while `where cua-driver` works fine in a normal shell. Always use the full path, e.g. `"C:\\Users\\...\\cua-driver.exe"`.
+
+17. **Windows/MSYS2: `bash -c` does NOT load `.bashrc`** — Claude Code invokes bash as `bash -c "command"`, which is a non-interactive non-login shell. Bash only sources `.bashrc` for INTERACTIVE non-login shells; `bash -c` is neither interactive nor login, so `.bashrc` fixes (like sourcing `/etc/profile` for MSYS2 paths or adding Python to PATH) are silently skipped. The fix ONLY takes effect through PATH inheritance from the parent process (e.g., Hermes's own bash session, which DID load `.bashrc`). If Claude Code is launched standalone from Windows (outside a configured MSYS2 environment), bash children inherit the Windows PATH (no `/usr/bin`, no `/c/Users/...` paths) and basic commands fail. **Preferred fix:** add `"BASH_ENV": "/c/Users/<user>/.bashrc"` to the `env` block of `~/.claude/settings.json` — scoped to Claude Code only, not system-wide. Alternative: `setx BASH_ENV %USERPROFILE%\\.bashrc` as a Windows user env var (affects ALL bash instances). Verify with `claude -p 'echo BASHRC_LOADED=$BASHRC_LOADED' --max-turns 3 --allowedTools Bash` after adding a marker to `.bashrc`. See `references/windows-msys2-path.md` for full two-part recipe (Part 1: `.bashrc` content, Part 2: `settings.json` BASH_ENV).
+
+18. **Windows: non-interactive bash skips both `.bashrc` AND `/etc/profile`** — when Claude Code starts bash (non-interactive non-login), neither `/etc/profile` (login-only) nor `.bashrc` (interactive-only) is loaded. Bash's compiled-in default PATH already includes `/usr/bin` and `/bin`, so basic MSYS2 tools (`cat`, `grep`, `sed`, `tr`) are available even without `/etc/profile`. The real breakage: Python install path (`C:\\Users\\...\\Python313\\`) uses Windows `:` drive separator which bash interprets as PATH separators, garbling the entry. All Python paths in `.bashrc` must use MSYS2 format (`/c/Users/...`). The fix works through PATH inheritance (Hermes → Claude Code → bash children), NOT through `.bashrc` loading in subprocesses. Adding `BASH_ENV` to `settings.json` makes `.bashrc` load explicitly for `bash -c` mode — the 3-part recipe is in `references/windows-msys2-path.md`. Also documented in wiki-next: `concepts(概念)/msys2-claude-code-path.md`.
+
+19. **Allowlist hygiene in settings.local.json** — don't add one-off commit-specific entries like `Bash(git commit -m 'docs: add specific section *')`. After that commit is pushed, the entry never matches again and becomes dead weight. Same for diagnostic one-liners (`python -c "import PIL..."`). Only keep entries with ongoing value: `git add *` (stages files across sessions), script invocations (`.claude/skills/.../compose.py *`), repetitive diagnostic patterns. Delete one-offs after the session that needed them.
+
+20. **Corporate npm registry blocking** — when `npm install -g @anthropic-ai/claude-code` is blocked by corporate approval or proxy policy, three alternatives (in preference order):
+   - **npm mirror:** `npm config set registry https://registry.npmmirror.com` then retry install. The mirror CDN may bypass corporate blocks.
+   - **Manual .tgz:** download the tarball from `https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-<version>.tgz` (browser or curl — npmjs.org ≠ github.com), then `npm install -g ./claude-code-<version>.tgz`.
+   - **Machine copy:** global install lives at `%APPDATA%\npm\claude` + `%APPDATA%\npm\claude.cmd` + `%APPDATA%\npm\node_modules\@anthropic-ai\claude-code`. Copy all three to target machine, ensure `%APPDATA%\npm` is in PATH. Same approach works for ccswitch.
+
+## ccswitch — Claude Code Configuration Switcher
+
+[ccswitch](https://github.com/TomokiMatsubuchi/ccswitch) (`npm install -g ccswitch`) is a companion CLI for Git-based Claude Code context management. It switches Claude Code configurations (API keys, models, settings) per project via git branches.
+
+- **Install:** `npm install -g ccswitch` (registry.npmjs.org, does NOT hit github.com)
+- **Version:** 0.10.0-rc.4 (npm only; GitHub source at TomokiMatsubuchi/ccswitch)
+- **Pitfall:** first run may hang if it checks for updates via GitHub — ensure network can reach github.com or wait for timeout
 
 ## Rules for Hermes Agents
 

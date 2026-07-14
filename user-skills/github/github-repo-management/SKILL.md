@@ -514,3 +514,7 @@ for g in json.load(sys.stdin):
 | List workflows | `gh workflow list` | `curl GET /repos/o/r/actions/workflows` |
 | Rerun CI | `gh run rerun ID` | `curl POST /repos/o/r/actions/runs/ID/rerun` |
 | Set secret | `gh secret set KEY` | `curl PUT /repos/o/r/actions/secrets/KEY` (+ encryption) |
+
+## Git Disaster Recovery
+
+When remote is force-pushed and local rebase silently drops files, use `git reflog` + `git reset --hard <sha>` to restore. If master is protected, push to a new branch and create MR. Full recipe: `references/rebase-force-push-recovery.md`.

@@ -5,7 +5,7 @@
 - Model used for audit: deepseek-v4-pro
 
 ## Wiki Documents Audited (9 total)
-All in `$OBSIDIAN_VAULT/wiki/concepts(概念)/`:
+All in `D:/obsidian/2026/wiki/concepts(概念)/`:
 
 | Document | Refs Fixed | Worst Drift |
 |----------|-----------|-------------|

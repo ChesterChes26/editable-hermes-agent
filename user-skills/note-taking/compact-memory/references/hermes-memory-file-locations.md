@@ -14,7 +14,7 @@
 ## 归档日志（Obsidian wiki，human-readable）
 
 ```
-$OBSIDIAN_VAULT\hermes-memory\{YYYY-MM-DD}.md
+D:\obsidian\2026\hermes-memory\{YYYY-MM-DD}.md
 ```
 
 这是 compact-memory skill 每次执行后留下的**操作日志**，不是记忆副本。它记录：

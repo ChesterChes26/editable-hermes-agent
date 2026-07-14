@@ -12,11 +12,11 @@ from these platforms, archive it to the Obsidian vault.
 ## Vault Path
 
 The Obsidian vault path is set via `OBSIDIAN_VAULT_PATH` env var.
-**Current vault:** `$OBSIDIAN_VAULT`
+**Current vault:** `D:\obsidian\2026`
 
 Always resolve the actual path from the environment before writing:
 - Windows: `$env:OBSIDIAN_VAULT_PATH` or `OBSIDIAN_VAULT_PATH`
-- If unset, fall back to `$OBSIDIAN_VAULT`
+- If unset, fall back to `D:\obsidian\2026`
 
 ## Workflow — Two-Tier Archival
 

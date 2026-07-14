@@ -1,7 +1,7 @@
 ---
 name: codex
-description: "Delegate coding to OpenAI Codex CLI (features, PRs)."
-version: 1.0.0
+description: "Delegate coding to OpenAI Codex CLI (features, PRs). Plugin installation from openai/plugins marketplace."
+version: 1.1.0
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos, windows]
@@ -28,9 +28,9 @@ Requires the codex CLI and a git repository.
 
 - Codex installed: `npm install -g @openai/codex`
 - OpenAI auth configured: either `OPENAI_API_KEY` or Codex OAuth credentials
-  from the Codex CLI login flow
 - **Must run inside a git repository** — Codex refuses to run outside one
 - Use `pty=true` in terminal calls — Codex is an interactive terminal app
+- **Plugins:** see `references/plugin-install.md` for installing plugins from openai/plugins into a project's `.codex/` directory
 
 For Hermes itself, `model.provider: openai-codex` uses Hermes-managed Codex
 OAuth from `~/.hermes/auth.json` after `hermes auth add openai-codex`. For the
@@ -79,12 +79,124 @@ There is NO native first-party support for Anthropic, Google, or other cloud
 providers as of 0.142.0. Tools like ccswitch / CodexSwitch exist in the
 ecosystem to fill this gap by routing requests through a proxy.
 
+### Custom model providers (third-party OpenAI-compatible APIs)
+
+Codex supports custom providers via `config.toml`:
+
+```toml
+model_provider = "custom"
+model = "<model-slug>"
+model_catalog_json = "cc-switch-model-catalog.json"
+
+[model_providers.custom]
+name = "<provider-name>"
+base_url = "https://api.<provider>.com"
+wire_api = "responses"           # or "chat_completions"
+requires_openai_auth = true
+```
+
+The custom provider name must match a `model_providers.<name>` section in
+`cc-switch-model-catalog.json`. This catalog defines model capabilities
+(slugs, context windows, tool support, reasoning levels).
+
+**Critical: `wire_api` determines the API protocol Codex uses.**
+
+| `wire_api` value | Protocol | Supported by |
+|---|---|---|
+| `"responses"` | OpenAI Responses API (newer, richer) | OpenAI only |
+| `"chat_completions"` | OpenAI Chat Completions API (standard) | OpenAI + all compatible providers |
+
+**Pitfall — Responses API mismatch with third-party providers:**
+
+DeepSeek, Groq, Together, and most third-party providers only implement the
+Chat Completions API — they do NOT support the Responses API. If `wire_api`
+is set to `"responses"` against a non-OpenAI base_url, the provider returns
+errors because it doesn't understand the wire format.
+
+**Fix for DeepSeek and similar providers:** either:
+
+1. Set `wire_api = "chat_completions"` in config.toml (if Codex supports it
+   for custom providers in your version — test it).
+2. Route through a translation proxy (litellm, one-api) that converts
+   Responses API → Chat Completions API format.
+
+The `requires_openai_auth = true` field sends the `OPENAI_API_KEY` from
+`~/.codex/auth.json` as a Bearer token — this works with DeepSeek since
+DeepSeek also uses Bearer token auth.
+
+See `references/custom-provider-config.toml` for a complete working config
+example (DeepSeek V4 Flash, Codex 0.142.5).
+
+For the ecosystem of third-party bridging solutions (protocol translation proxies,
+GUI managers, agent runtimes) that connect Codex to DeepSeek and comparable
+providers, see `references/deepseek-providers.md` — covers ccswitch-deepseek,
+CodeSeeX, and cc-switch with maintenance status, bug history, and recommendation.
+
 ### Updating Codex
 
 ```
 npm install -g @openai/codex@latest
 codex --version   # verify
 ```
+
+## Plugin Installation
+
+Codex does NOT have `/skill-name` slash commands or `@skill` mention syntax (unlike Claude Code). Skills from plugins are loaded **automatically** by the agent — the system prompt injects the skill name + description, and the agent calls `skill_view()` when a matching task is detected. To force-load a skill, explicitly say "use the <name> skill" in your prompt.
+
+Codex plugins live in the [openai/plugins](https://github.com/openai/plugins) repo (175+ plugins). Installing them into a project means cloning plugins into `.codex/` without pulling the entire repo.
+
+### Installing plugins into a project
+
+Use sparse checkout to clone only the plugins you need:
+
+```bash
+# 1. Shallow clone without checkout (avoids pulling the full 175-plugin repo)
+git -c http.proxy=<proxy> clone --depth 1 --no-checkout \
+    https://github.com/openai/plugins.git plugins
+
+cd plugins
+
+# 2. Enable cone-mode sparse checkout, select only needed plugin dirs
+git sparse-checkout init --cone
+git sparse-checkout set plugins/github plugins/notion plugins/vercel  # ... add more
+git checkout
+
+# 3. Move plugins to project-level .codex/ (clean up the nesting)
+cd .. && mkdir -p .codex
+mv plugins/plugins/* .codex/
+rm -rf plugins
+```
+
+Each plugin MUST have `.codex-plugin/plugin.json` at minimum. A well-equipped plugin also carries `skills/`, optional `agents/`, `commands/`, `hooks.json`, `.app.json` (OAuth), `.mcp.json` (MCP server).
+
+### Verifying installation
+
+```bash
+# Check every plugin has its manifest
+for d in .codex/*/; do
+  [ -f "$d.codex-plugin/plugin.json" ] && echo "OK: $d" || echo "MISSING: $d"
+done
+
+# Audit full structure (skills, agents, commands, hooks, connectors)
+find .codex -type f -not -path '*/.git/*'
+```
+
+### Plugin categories (selected)
+
+| Category | Plugins |
+|----------|---------|
+| Developer Tools | github, vercel, cloudflare, supabase, sentry, neon-postgres |
+| Productivity | notion, linear, gmail, google-calendar, google-drive, airtable |
+| Communication | slack, gmail, outlook-email, teams, zoom |
+| Design | figma, canva, lovable |
+| Finance | stripe |
+
+### Pitfalls
+
+- **Full clone times out on slow/corporate connections.** The repo is large; always use `--depth 1 --no-checkout` + sparse checkout.
+- **`git sparse-checkout set` on a non-cone-mode repo silently fails.** Run `git sparse-checkout init --cone` first.
+- **After moving plugins into `.codex/`, verify no orphaned `.git` directory** — the outer clone's `.git` was deleted with `rm -rf plugins`, but double-check.
+- See `references/plugin-install.md` for a worked example with proxy specifics.
 
 ## One-Shot Tasks
 

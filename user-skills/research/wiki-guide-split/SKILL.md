@@ -8,7 +8,7 @@ version: 2.1.0
 
 将一次对话总结或文章阅读沉淀为 wiki 文档。不是机械搬运——先判断信息是否有提取价值，有就拆成 guide（可执行约束）+ reference（完整证据），没有就保留原始文档。
 
-旧 wiki 根目录（`$OBSIDIAN_VAULT/wiki/`）即将废弃，之后所有 wiki 存档都走这个流程。
+旧 wiki 根目录（`D:/obsidian/2026/wiki/`）即将废弃，之后所有 wiki 存档都走这个流程。
 
 ## 触发条件
 
@@ -144,7 +144,7 @@ guide 和 reference 同目录，后缀配对。`.ref.md` 只在有配对的 guid
 - 文件名全小写，连字符分隔。
 - 拆的文档：`xxx.md`（guide）+ `xxx.ref.md`（reference），同目录。
 - 不拆的文档：`xxx.md` 单文件。
-- 目标根路径：`$OBSIDIAN_VAULT/wiki-next/`。根据内容分入对应子目录：`concepts(概念)/`、`comparisons(对比)/`、`entities(实体)/`、`queries(问答)/`、`raw(源材料)/`。hermes 相关内容按 T0-T3 层级放入 `concepts(概念)/hermes/Tx(层级)/`。
+- 目标根路径：`D:/obsidian/2026/wiki-next/`。根据内容分入对应子目录：`concepts(概念)/`、`comparisons(对比)/`、`entities(实体)/`、`queries(问答)/`、`经验教训(lessons-learned)/`、`raw(源材料)/`。hermes 相关内容按 T0-T3 层级放入 `concepts(概念)/hermes/Tx(层级)/`。
 - **`raw(源材料)/` 目录不进入任何归档流程。** 此目录下的文档是原始材料（会话记录、文章原文），不拆 guide+ref，不做约束密度判断，不修改。只有 `concepts/`、`comparisons/`、`entities/`、`queries/` 下的文档走此流程。
 
 ## Frontmatter 规范
@@ -172,7 +172,7 @@ confidence: high | medium | low
 
 ### 1. 分类
 
-根据内容判断归属子目录。有疑问时参考 `$OBSIDIAN_VAULT/wiki-next/SCHEMA.md`。
+根据内容判断归属子目录。有疑问时参考 `D:/obsidian/2026/wiki-next/SCHEMA.md`。
 
 ### 2. 写文件
 
@@ -239,6 +239,10 @@ git -c http.proxy=http://127.0.0.1:7897 push
 - **用一个例子里的双路径替代两个独立例子。** gateway-response-filters 的"一个例子"拆成了 [场景1 正常 silence] + [场景2 失败绕过] 两个独立块，各占 15+ 行。合并为单场景内的双路径（正常路径/异常路径），一个 code block 搞定。
 - **约束密度大于格式审查。** 审计 Phase 2b 文档时，核心问题是"该不该拆"（Phase 1 约束密度判断），不是 frontmatter 是否缺字段。frontmatter 修正是机械操作，约束密度是判断操作——先判断，后修正。
 - **大规模合规审查用三 subagent 并行。** 详见 `references/audit-patterns.md`。要点：Phase 2a（guide 内容）、Phase 2b 约束密度、格式审查拆成独立 subagent，各配 skills toolset。
+- **Q&A 整理和验证报告放入 `经验教训(lessons-learned)/`，不是 `concepts(概念)/`。** 分类标准：是架构原理/概念 → concepts；是实际操作踩坑经验/验证结果/问题排查记录 → 经验教训。判断错了不是 format 问题——是信息丢失（读者按 concepts 检索时找不到，按 lessons-learned 检索时漏掉）。如果用户纠正了你的分类，更新 skill 中的分类规则而不是只修一次。
+- **SkillOpt-Sleep 优化已有 operational skill 时，用户可能要验证“让 SkillOpt 自己发现问题”，而不是直接手改。** 这种 wiki 归档要记录 train/val tasks、judge、target_skill_path、staged review 的方法；细节见 `references/skillopt-sleep-skill-optimization.md`。
+- **index.md patch 操作容易误删相邻行。** `old_string` 如果跨行包含相邻条目（如 `make-interfaces-feel-better-skill\n- [[msys2-claude-code-path...`），patch 会把被吞掉的行一起删除，同时在正确位置也插入一次——结果是一个条目重复、另一个消失。解法：old_string 只写到要插入位置的前一行和后一行的**唯一交界处**（如 `### Hermes T0(核心基座)`），不要在 old_string 里包含不需要改的相邻条目名。patch 后**立即 read_file 验证**被插入位置前后 5 行的完整性，确认无重复、无丢失。
+- **index.md 页面计数长期过期。** 每次入库更新 `总页面: N` 时，不要信任旧数字，必须用 `os.walk` 重新统计 wiki-next 下（排除 `_drafts/`、`.ref.md`、`log.md`、`index.md`、`SCHEMA.md`）的实际 `.md` 文件数，再写入。旧数字可能比实际少几十（本次：19→83），说明从未被维护过。
 
 ## 批量迁移（按需）
 

@@ -1,0 +1,1315 @@
+"""
+Post-report HTML generator for the Outlook Tencent Meeting hybrid pipeline.
+
+Standalone hook script — called AFTER report.py finalize. Reads all report
+data from a single --data JSON argument OR a --data-file JSON file and produces
+a self-contained HTML file (inline CSS, relative image paths) in the snapshot directory.
+
+Usage:
+    python report_html.py --data '<json-string>'
+    python report_html.py --data-file report_data.json --model "glm-5-turbo"
+
+JSON schema:
+    {
+        "subject": "Meeting subject",
+        "to": "attendee@example.com",
+        "start": "2026-07-06 09:00",
+        "end": "2026-07-06 11:00",
+        "meeting_link": "https://meeting.tencent.com/dm/123456789",
+        "meeting_id": "123-456-789",
+        "waiting_room": true,
+        "steps": [
+            {"name": "Step 1", "desc": "Classic Outlook + Clear Popups",
+             "status": "PASS", "snapshot": "C:/.../step1_main_window.png"},
+            ...
+        ],
+        "token_usage": {"input": 12345, "output": 6789, "total": 19134},
+        "duration": "2m 15s",
+        "model": "<CURRENT_MODEL>",  // dynamically set by agent at runtime
+        "lang": "zh",
+        "snapshot_dir": "C:/.../snapshots/<uuid>"
+    }
+"""
+import sys
+import os
+import json
+import html as html_mod
+import base64
+import argparse
+from pathlib import Path
+
+# ── i18n labels ──────────────────────────────────────────────────────────────
+
+LABELS = {
+    "zh": {
+        "title": "Schedule Meeting — 执行报告",
+        "params": "会邀参数",
+        "subject": "主题",
+        "attendee": "收件人",
+        "time": "时间",
+        "meeting_link": "会议链接",
+        "meeting_id": "会议号",
+        "waiting_room": "等候室",
+        "enabled": "已启用",
+        "not_found": "未找到",
+        "token_usage": "Token 消耗",
+        "input_tokens": "输入",
+        "output_tokens": "输出",
+        "total_tokens": "总计",
+        "duration": "总耗时",
+        "status": "全部 5 步通过",
+        "gallery": "步骤截图",
+        "click_hint": "点击放大",
+        "pipeline": "执行流水线",
+        "model": "运行模型",
+    },
+    "en": {
+        "title": "Schedule Meeting — Execution Report",
+        "params": "Meeting Parameters",
+        "subject": "Subject",
+        "attendee": "Attendee",
+        "time": "Time",
+        "meeting_link": "Meeting Link",
+        "meeting_id": "Meeting ID",
+        "waiting_room": "Waiting Room",
+        "enabled": "Enabled",
+        "not_found": "Not found",
+        "token_usage": "Token Usage",
+        "input_tokens": "Input",
+        "output_tokens": "Output",
+        "total_tokens": "Total",
+        "duration": "Duration",
+        "status": "All 5 steps passed",
+        "gallery": "Step Screenshots",
+        "click_hint": "Click to enlarge",
+        "pipeline": "Pipeline",
+        "model": "LLM Model",
+    },
+}
+
+
+def esc(text):
+    """HTML-escape a string."""
+    return html_mod.escape(str(text)) if text else ""
+
+
+def image_to_data_uri(path):
+    """Convert an image file to a base64 data URI for inline embedding."""
+    try:
+        with open(path, "rb") as f:
+            data = base64.b64encode(f.read()).decode("ascii")
+        ext = Path(path).suffix.lower().lstrip(".")
+        mime = {"png": "image/png", "jpg": "image/jpeg",
+                "jpeg": "image/jpeg", "gif": "image/gif"}.get(ext, "image/png")
+        return f"data:{mime};base64,{data}"
+    except Exception:
+        return ""
+
+
+def render_html(data):
+    """Render the full HTML page from the data dict."""
+    lang = data.get("lang", "zh")
+    L = LABELS.get(lang, LABELS["zh"])
+
+    steps = data.get("steps", [])
+    tokens = data.get("token_usage", {})
+    snap_dir = data.get("snapshot_dir", "")
+
+    # Convert snapshot paths to relative or data URIs
+    def resolve_snapshot(snap_path):
+        if not snap_path or not os.path.isfile(snap_path):
+            return None
+        try:
+            rel = os.path.relpath(snap_path, snap_dir).replace("\\", "/")
+            return rel
+        except (ValueError, OSError):
+            return None
+
+    # ── Color palette ──────────────────────────────────────────────────────
+    # Warm Linen Glass: airy cream background, visible glass morphism, amber glow
+    bg_warm = "#f6f2ec"
+    bg_raised = "#f0ebe4"
+    card_bg = "rgba(255,255,255,0.50)"
+    card_hover = "rgba(255,255,255,0.68)"
+    glass_rail_bg = "rgba(255,255,255,0.38)"
+    glass_accent_bg = "rgba(255,255,255,0.30)"
+    text_primary = "#1c1917"
+    text_secondary = "#78716c"
+    text_muted = "#a8a29e"
+    accent = "#ea580c"          # deeper burnt orange (pops on light bg)
+    accent_dim = "#c2410c"
+    gold = "#b8860b"
+    gold_dim = "#9a6f08"
+    success = "#16a34a"
+    success_bg = "rgba(22,163,74,0.10)"
+    border = "rgba(0,0,0,0.07)"
+    border_strong = "rgba(0,0,0,0.13)"
+    border_glow = "rgba(234,88,12,0.18)"
+
+    # ── Build page ────────────────────────────────────────────────────────
+    parts = []
+
+    # CSS
+    css = f"""
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+*, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+
+:root {{
+    --bg: {bg_warm};
+    --bg-raised: {bg_raised};
+    --card: {card_bg};
+    --card-hover: {card_hover};
+    --glass-rail: {glass_rail_bg};
+    --glass-accent: {glass_accent_bg};
+    --text: {text_primary};
+    --text2: {text_secondary};
+    --text3: {text_muted};
+    --accent: {accent};
+    --accent-dim: {accent_dim};
+    --gold: {gold};
+    --gold-dim: {gold_dim};
+    --success: {success};
+    --success-bg: {success_bg};
+    --border: {border};
+    --border-strong: {border_strong};
+    --border-glow: {border_glow};
+}}
+
+body {{
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    overflow-x: hidden;
+}}
+
+/* ── Dot-grid pattern overlay ── */
+body::before {{
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.14;
+    background-image: radial-gradient(circle, rgba(0,0,0,0.16) 1px, transparent 1px);
+    background-size: 30px 30px;
+}}
+
+/* ── Animated gradient orbs ── */
+.bg-orbs {{
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}}
+.bg-orb {{
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(150px);
+    opacity: 0.16;
+    animation: orbDrift 24s ease-in-out infinite;
+}}
+.bg-orb--1 {{
+    width: 750px; height: 750px;
+    background: radial-gradient(circle, #f97316 0%, transparent 70%);
+    top: -220px; right: -180px;
+    animation-delay: 0s;
+    opacity: 0.13;
+}}
+.bg-orb--2 {{
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, #eab308 0%, transparent 70%);
+    bottom: -180px; left: -140px;
+    animation-delay: -8s;
+    opacity: 0.10;
+}}
+.bg-orb--3 {{
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, #f97316 0%, transparent 70%);
+    top: 45%; left: 50%;
+    animation-delay: -16s;
+    opacity: 0.07;
+}}
+
+@keyframes orbDrift {{
+    0%, 100% {{ transform: translate(0, 0) scale(1); }}
+    25% {{ transform: translate(50px, -60px) scale(1.12); }}
+    50% {{ transform: translate(-35px, 35px) scale(0.88); }}
+    75% {{ transform: translate(-50px, -25px) scale(1.06); }}
+}}
+
+/* ── Grain overlay (body) ── */
+body::after {{
+    content: '';
+    position: fixed;
+    inset: 0;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+}}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FROSTED GLASS PERIMETER — architectural glass panels framing the viewport
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Left & Right vertical glass rails ── */
+.glass-rail {{
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 72px;
+    z-index: 2;
+    pointer-events: none;
+    background: var(--glass-rail);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border-color: var(--border);
+    border-style: solid;
+}}
+.glass-rail--left {{
+    left: 0;
+    border-right-width: 1px;
+}}
+.glass-rail--right {{
+    right: 0;
+    border-left-width: 1px;
+}}
+
+/* ── Inner edge highlight on glass rails ── */
+.glass-rail::after {{
+    content: '';
+    position: absolute;
+    top: 10%;
+    bottom: 10%;
+    width: 1px;
+    opacity: 0.35;
+    background: linear-gradient(
+        180deg,
+        transparent 0%,
+        rgba(234,88,12,0.35) 20%,
+        rgba(184,134,11,0.30) 50%,
+        rgba(234,88,12,0.35) 80%,
+        transparent 100%
+    );
+}}
+.glass-rail--left::after  {{ right: 1px; }}
+.glass-rail--right::after {{ left: 1px; }}
+
+/* ── Top frosted glass header bar ── */
+.glass-topbar {{
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    z-index: 2;
+    pointer-events: none;
+    background: var(--glass-rail);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border-bottom: 1px solid var(--border);
+}}
+.glass-topbar::after {{
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 20%;
+    right: 20%;
+    height: 1px;
+    opacity: 0.3;
+    background: linear-gradient(90deg, transparent, rgba(234,88,12,0.28), rgba(184,134,11,0.22), transparent);
+}}
+
+/* ── Floating glass accent diamonds ── */
+.glass-accent {{
+    position: fixed;
+    z-index: 1;
+    pointer-events: none;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: var(--glass-accent);
+    border: 1px solid var(--border);
+    transform: rotate(45deg);
+    animation: accentFloat 14s ease-in-out infinite;
+}}
+.glass-accent--1 {{
+    width: 120px; height: 120px;
+    top: 12%; left: 88px;
+    border-radius: 24px;
+    animation-delay: 0s;
+}}
+.glass-accent--2 {{
+    width: 80px; height: 80px;
+    bottom: 18%; right: 88px;
+    border-radius: 18px;
+    animation-delay: -5s;
+}}
+
+@keyframes accentFloat {{
+    0%, 100% {{ transform: rotate(45deg) translate(0, 0); opacity: 0.5; }}
+    33%  {{ transform: rotate(48deg) translate(6px, -8px); opacity: 0.7; }}
+    66%  {{ transform: rotate(42deg) translate(-4px, 6px); opacity: 0.4; }}
+}}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAIN CONTENT
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.page {{
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 80px 24px 80px;
+}}
+
+/* ── Entrance animations ── */
+@keyframes fadeUp {{
+    from {{ opacity: 0; transform: translateY(32px); }}
+    to   {{ opacity: 1; transform: translateY(0); }}
+}}
+.entrance-hero  {{ animation: fadeUp 0.9s cubic-bezier(0.16,1,0.3,1) both; }}
+.entrance-card1 {{ animation: fadeUp 0.9s 0.14s cubic-bezier(0.16,1,0.3,1) both; }}
+.entrance-card2 {{ animation: fadeUp 0.9s 0.24s cubic-bezier(0.16,1,0.3,1) both; }}
+.entrance-card3 {{ animation: fadeUp 0.9s 0.34s cubic-bezier(0.16,1,0.3,1) both; }}
+
+/* ── Hero ── */
+.hero {{
+    text-align: center;
+    margin-bottom: 56px;
+    padding-bottom: 36px;
+    position: relative;
+}}
+.hero::after {{
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 2px;
+    border-radius: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--gold), transparent);
+}}
+.hero-badge {{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 20px;
+    border-radius: 100px;
+    background: rgba(234,88,12,0.07);
+    border: 1px solid rgba(234,88,12,0.16);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 26px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}}
+.hero-badge::before {{
+    content: '';
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px rgba(249,115,22,0.7);
+    animation: pulse-dot 2s ease-in-out infinite;
+}}
+@keyframes pulse-dot {{
+    0%, 100% {{ box-shadow: 0 0 8px rgba(249,115,22,0.5); }}
+    50%      {{ box-shadow: 0 0 20px rgba(249,115,22,1.0); }}
+}}
+.hero h1 {{
+    font-family: 'DM Serif Display', 'Georgia', 'Times New Roman', serif;
+    font-size: 48px;
+    font-weight: 400;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    color: var(--text);
+    margin-bottom: 12px;
+}}
+.hero h1 .accent-word {{
+    background: linear-gradient(135deg, var(--accent) 0%, var(--gold) 60%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}}
+.hero .subtitle {{
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--text3);
+    font-weight: 400;
+    letter-spacing: 0.3px;
+}}
+
+/* ── Cards (architectural glass) ── */
+.card {{
+    background: var(--card);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 38px;
+    margin-bottom: 24px;
+    transition: border-color 0.6s ease, box-shadow 0.6s ease, background 0.6s ease;
+    position: relative;
+    overflow: hidden;
+}}
+/* ── Glass edge highlight: light catching the top edge of thick glass ── */
+.card::before {{
+    content: '';
+    position: absolute;
+    top: 0; left: 20px; right: 20px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0,0,0,0.06), rgba(234,88,12,0.18), rgba(0,0,0,0.06), transparent);
+    border-radius: 1px;
+    opacity: 0.6;
+    transition: opacity 0.6s ease;
+    pointer-events: none;
+    z-index: 1;
+}}
+.card:hover::before {{
+    opacity: 1;
+}}
+.card:hover {{
+    background: var(--card-hover);
+    border-color: var(--border-strong);
+    box-shadow:
+        0 8px 32px rgba(0,0,0,0.35),
+        0 0 0 1px rgba(249,115,22,0.06),
+        inset 0 1px 0 rgba(0,0,0,0.04);
+}}
+
+.card-title {{
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2.8px;
+    color: var(--accent);
+    margin-bottom: 26px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}}
+.card-title::after {{
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(0,0,0,0.10), transparent);
+    border-radius: 1px;
+}}
+
+/* ── Params grid ── */
+.params-grid {{
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 15px 30px;
+    font-size: 14px;
+}}
+.params-label {{
+    color: var(--text3);
+    font-weight: 500;
+    white-space: nowrap;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}}
+.params-value {{
+    color: var(--text);
+    font-weight: 500;
+    word-break: break-all;
+}}
+.params-value a {{
+    color: var(--accent);
+    text-decoration: none;
+    position: relative;
+    padding-bottom: 2px;
+    background: linear-gradient(var(--accent), var(--accent)) 0 100% / 0 1px no-repeat;
+    transition: background-size 0.3s ease;
+}}
+.params-value a:hover {{
+    background-size: 100% 1px;
+}}
+
+/* ── Token stats ── */
+.token-grid {{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}}
+.token-card {{
+    position: relative;
+    background: {bg_raised};
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 30px 20px 24px;
+    text-align: center;
+    transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}}
+.token-card::before {{
+    content: '';
+    position: absolute;
+    top: 0; left: 20px; right: 20px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0,0,0,0.05), transparent);
+    opacity: 0.5;
+    pointer-events: none;
+}}
+.token-card:hover {{
+    transform: translateY(-5px);
+    border-color: var(--border-strong);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+}}
+.token-card::after {{
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+}}
+.token-card--input::after  {{ background: linear-gradient(90deg, #f97316, #fb923c); }}
+.token-card--output::after {{ background: linear-gradient(90deg, #eab308, #facc15); }}
+.token-card--total::after  {{ background: linear-gradient(90deg, #f97316, #eab308, #fb923c); }}
+.token-icon {{
+    font-size: 18px;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}}
+.token-label {{
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.8px;
+    color: var(--text3);
+    margin-bottom: 10px;
+}}
+.token-value {{
+    font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+    font-size: 34px;
+    font-weight: 500;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -1.5px;
+}}
+.token-bar {{
+    margin-top: 16px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(0,0,0,0.06);
+    overflow: hidden;
+}}
+.token-bar-fill {{
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1.4s cubic-bezier(0.16,1,0.3,1);
+}}
+.token-bar-fill--input  {{ background: linear-gradient(90deg, #f97316, #fb923c); }}
+.token-bar-fill--output {{ background: linear-gradient(90deg, #eab308, #facc15); }}
+.token-bar-fill--total  {{ background: linear-gradient(90deg, #f97316, #eab308, #fb923c); }}
+
+/* ── Duration + Status ── */
+.meta-bar {{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 30px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}}
+.meta-item {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text2);
+}}
+.meta-item .meta-icon {{
+    font-size: 15px;
+    opacity: 0.45;
+}}
+.meta-item strong {{
+    color: var(--text);
+    font-weight: 600;
+    font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+    font-size: 13px;
+    letter-spacing: -0.3px;
+}}
+.status-badge {{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    background: var(--success-bg);
+    color: var(--success);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 100px;
+    border: 1px solid rgba(34,197,94,0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}}
+.status-badge::before {{
+    content: '';
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 12px rgba(34,197,94,0.7);
+    animation: pulse-dot-green 2s ease-in-out infinite;
+}}
+@keyframes pulse-dot-green {{
+    0%, 100% {{ box-shadow: 0 0 6px rgba(34,197,94,0.5); }}
+    50%      {{ box-shadow: 0 0 18px rgba(34,197,94,0.9); }}
+}}
+
+/* ── Pipeline (vertical timeline) ── */
+.pipeline {{
+    position: relative;
+    padding-left: 44px;
+}}
+/* ── Vertical rail ── */
+.pipeline::before {{
+    content: '';
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: 15px;
+    width: 2px;
+    border-radius: 1px;
+    background: linear-gradient(
+        180deg,
+        var(--accent) 0%,
+        var(--gold) 40%,
+        var(--gold) 60%,
+        var(--accent) 100%
+    );
+    opacity: 0.25;
+}}
+.pipeline-step {{
+    position: relative;
+    margin-bottom: 28px;
+    animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) both;
+    transition: transform 0.35s ease;
+}}
+.pipeline-step:last-child {{
+    margin-bottom: 0;
+}}
+.pipeline-step:hover {{
+    transform: translateX(4px);
+}}
+/* ── Step dot on the rail ── */
+.pipeline-dot {{
+    position: absolute;
+    left: -36px;
+    top: 16px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--card);
+    border: 2px solid var(--border-strong);
+    z-index: 1;
+    transition: all 0.35s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}}
+.pipeline-step:hover .pipeline-dot {{
+    border-color: var(--accent);
+    background: var(--accent);
+    box-shadow: 0 0 20px rgba(249,115,22,0.35);
+}}
+.pipeline-dot::after {{
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    transition: all 0.35s ease;
+}}
+.pipeline-step:hover .pipeline-dot::after {{
+    background: #fff;
+}}
+/* ── Step content card ── */
+.pipeline-card {{
+    background: {bg_raised};
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 26px;
+    transition: border-color 0.5s ease, box-shadow 0.5s ease, background 0.5s ease;
+    position: relative;
+    overflow: hidden;
+}}
+.pipeline-card::before {{
+    content: '';
+    position: absolute;
+    top: 0; left: 20px; right: 20px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0,0,0,0.05), rgba(234,88,12,0.10), rgba(0,0,0,0.05), transparent);
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+}}
+.pipeline-step:hover .pipeline-card {{
+    border-color: var(--border-strong);
+    box-shadow: 0 6px 28px rgba(0,0,0,0.32), 0 0 0 1px rgba(249,115,22,0.05);
+    background: rgba(255,255,255,0.42);
+}}
+.pipeline-step:hover .pipeline-card::before {{
+    opacity: 0.8;
+}}
+/* ── Step header row ── */
+.pipeline-header {{
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}}
+.pipeline-step-name {{
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.8px;
+    color: var(--accent);
+}}
+.pipeline-step-desc {{
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: 15px;
+    color: var(--text);
+    line-height: 1.4;
+}}
+.pipeline-status {{
+    margin-left: auto;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    white-space: nowrap;
+}}
+.pipeline-status--pass {{
+    color: var(--success);
+    background: var(--success-bg);
+    border: 1px solid rgba(22,163,74,0.18);
+}}
+.pipeline-status--fail {{
+    color: #dc2626;
+    background: rgba(220,38,38,0.08);
+    border: 1px solid rgba(220,38,38,0.18);
+}}
+.pipeline-duration {{
+    font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gold-dim);
+    white-space: nowrap;
+    background: rgba(234,88,12,0.10);
+    border: 1px solid rgba(234,88,12,0.20);
+    border-radius: 8px;
+    padding: 4px 10px;
+}}
+.pipeline-detail {{
+    font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text2);
+    line-height: 1.5;
+    margin-top: 6px;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.03);
+    border-radius: 6px;
+    word-break: break-all;
+}}
+/* ── Inline snapshot preview ── */
+.pipeline-snap {{
+    margin-top: 14px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1),
+                box-shadow 0.4s ease,
+                border-color 0.4s ease;
+    position: relative;
+    background: var(--bg);
+}}
+.pipeline-snap:hover {{
+    transform: scale(1.02);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.45), 0 0 0 1px rgba(249,115,22,0.18);
+    border-color: rgba(249,115,22,0.25);
+}}
+.pipeline-snap img {{
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 220px;
+    object-fit: cover;
+    object-position: top;
+    transition: filter 0.4s ease;
+}}
+.pipeline-snap:hover img {{
+    filter: brightness(0.7);
+}}
+.pipeline-snap-caption {{
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 28px 14px 10px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.75));
+    color: #fff;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    pointer-events: none;
+}}
+.pipeline-snap:hover .pipeline-snap-caption {{
+    opacity: 1;
+    transform: translateY(0);
+}}
+
+/* ── Lightbox ── */
+.lightbox {{
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    cursor: zoom-out;
+}}
+.lightbox.active {{
+    opacity: 1;
+    pointer-events: auto;
+}}
+.lightbox img {{
+    max-width: 92vw;
+    max-height: 90vh;
+    border-radius: 12px;
+    box-shadow: 0 48px 140px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.06);
+    transform: scale(0.9);
+    transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}}
+.lightbox.active img {{
+    transform: scale(1);
+}}
+.lightbox-close {{
+    position: absolute;
+    top: 24px;
+    right: 28px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.3s;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}}
+.lightbox-close:hover {{
+    background: rgba(255,255,255,0.12);
+    transform: scale(1.15);
+}}
+
+/* ── Footer ── */
+.footer {{
+    text-align: center;
+    margin-top: 60px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.8px;
+}}
+.footer span {{
+    font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+    font-size: 10px;
+    letter-spacing: 0;
+    color: var(--text3);
+}}
+
+/* ── Model info badge ── */
+.model-info {{
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 8px 20px;
+    border-radius: 100px;
+    background: rgba(234,88,12,0.05);
+    border: 1px solid rgba(234,88,12,0.12);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    letter-spacing: 0.5px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}}
+.model-info strong {{
+    color: var(--accent);
+    font-weight: 700;
+}}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {{
+    .glass-rail {{ width: 32px; }}
+    .glass-rail--left::after, .glass-rail--right::after {{ opacity: 0.15; }}
+    .glass-topbar {{ height: 36px; }}
+    .glass-accent {{ display: none; }}
+    .page {{ padding: 60px 16px 48px; }}
+    .hero h1 {{ font-size: 30px; }}
+    .hero-badge {{ font-size: 10px; padding: 5px 14px; letter-spacing: 1.4px; }}
+    .card {{ padding: 22px; border-radius: 16px; }}
+    .params-grid {{ grid-template-columns: 1fr; gap: 8px; }}
+    .token-grid {{ grid-template-columns: 1fr; gap: 14px; }}
+    .token-value {{ font-size: 26px; }}
+    .gallery-grid {{ grid-template-columns: 1fr; }}
+    .meta-bar {{ flex-direction: column; align-items: flex-start; gap: 14px; }}
+}}
+"""
+
+    parts.append(f"<!DOCTYPE html>\n<html lang=\"{lang}\">\n<head>\n"
+                 f"<meta charset=\"UTF-8\">\n<meta name=\"viewport\" "
+                 f"content=\"width=device-width, initial-scale=1.0\">\n"
+                 f"<title>{esc(L['title'])}</title>\n<style>{css}</style>\n</head>")
+
+    # Body start — perimeter glass + orbs + grain + page
+    parts.append('<body>')
+
+    # ── Frosted glass perimeter (architectural frame) ──
+    parts.append("""
+<!-- Frosted glass architectural frame -->
+<div class="glass-rail glass-rail--left" aria-hidden="true"></div>
+<div class="glass-rail glass-rail--right" aria-hidden="true"></div>
+<div class="glass-topbar" aria-hidden="true"></div>
+
+<!-- Floating glass accent shapes -->
+<div class="glass-accent glass-accent--1" aria-hidden="true"></div>
+<div class="glass-accent glass-accent--2" aria-hidden="true"></div>
+
+<!-- Animated background orbs -->
+<div class="bg-orbs" aria-hidden="true">
+    <div class="bg-orb bg-orb--1"></div>
+    <div class="bg-orb bg-orb--2"></div>
+    <div class="bg-orb bg-orb--3"></div>
+</div>
+""")
+
+    parts.append('<div class="page">')
+
+    # ── Hero ──
+    date_badge = data.get('start', '')[:10] if data.get('start') else ''
+    # Wrap the middle segment in accent span
+    if lang == "zh":
+        hero_html = f"<h1><span class=\"accent-word\">Outlook Tencent</span> Invitation — 执行报告</h1>"
+    else:
+        hero_html = f"<h1><span class=\"accent-word\">Outlook Tencent</span> Invitation — Execution Report</h1>"
+
+    parts.append(f"""
+<div class="hero entrance-hero">
+    <div class="hero-badge">Outlook Tencent Invitation Pipeline &middot; {esc(date_badge)}</div>
+    {hero_html}
+    <div class="subtitle">{esc(data.get('start', ''))} &mdash; {esc(data.get('to', ''))}</div>
+</div>
+""")
+
+    # ── Card 1: Meeting Params ──
+    meeting_id = data.get("meeting_id", "")
+    meeting_link = data.get("meeting_link", "")
+    waiting = L["enabled"] if data.get("waiting_room") else L.get("not_found", "—")
+
+    params_rows = f"""
+    <div class="params-grid">
+        <span class="params-label">{esc(L['subject'])}</span>
+        <span class="params-value">{esc(data.get('subject', ''))}</span>
+
+        <span class="params-label">{esc(L['attendee'])}</span>
+        <span class="params-value">{esc(data.get('to', ''))}</span>
+
+        <span class="params-label">{esc(L['time'])}</span>
+        <span class="params-value">{esc(data.get('start', ''))} &ndash; {esc(data.get('end', '').split()[-1] if ' ' in str(data.get('end', '')) else data.get('end', ''))} (UTC+8)</span>
+
+        <span class="params-label">{esc(L['meeting_link'])}</span>
+        <span class="params-value">{f'<a href="{esc(meeting_link)}" target="_blank">{esc(meeting_link)}</a>' if meeting_link else esc(L.get('not_found', ''))}</span>
+
+        <span class="params-label">{esc(L['meeting_id'])}</span>
+        <span class="params-value">{esc(meeting_id) if meeting_id else esc(L.get('not_found', ''))}</span>
+
+        <span class="params-label">{esc(L['waiting_room'])}</span>
+        <span class="params-value">{esc(waiting)}</span>
+    </div>"""
+
+    parts.append(f"""
+<div class="card entrance-card1">
+    <div class="card-title">{esc(L['params'])}</div>
+    {params_rows}
+</div>
+""")
+
+    # ── Model info ──
+    model_name = data.get("model", "")
+    if model_name:
+        parts.append(f"""
+<div class="model-info entrance-card2">
+    {esc(L.get('model', 'LLM Model'))}: <strong>{esc(model_name)}</strong>
+</div>
+""")
+
+    # ── Card 2: Token Usage + Duration ──
+    input_t = tokens.get("input", 0)
+    output_t = tokens.get("output", 0)
+    total_t = tokens.get("total", input_t + output_t)
+    max_t = max(total_t, 1)
+    duration = data.get("duration", "")
+    all_passed = all(s.get("status") in ("PASS", "✓") for s in steps)
+
+    parts.append(f"""
+<div class="card entrance-card2">
+    <div class="card-title">{esc(L['token_usage'])}</div>
+    <div class="token-grid">
+        <div class="token-card token-card--input">
+            <div class="token-icon">↓</div>
+            <div class="token-label">{esc(L['input_tokens'])}</div>
+            <div class="token-value">{input_t:,}</div>
+            <div class="token-bar"><div class="token-bar-fill token-bar-fill--input" style="width:{input_t/max_t*100:.1f}%"></div></div>
+        </div>
+        <div class="token-card token-card--output">
+            <div class="token-icon">↑</div>
+            <div class="token-label">{esc(L['output_tokens'])}</div>
+            <div class="token-value">{output_t:,}</div>
+            <div class="token-bar"><div class="token-bar-fill token-bar-fill--output" style="width:{output_t/max_t*100:.1f}%"></div></div>
+        </div>
+        <div class="token-card token-card--total">
+            <div class="token-icon">◆</div>
+            <div class="token-label">{esc(L['total_tokens'])}</div>
+            <div class="token-value">{total_t:,}</div>
+            <div class="token-bar"><div class="token-bar-fill token-bar-fill--total" style="width:100%"></div></div>
+        </div>
+    </div>
+    <div class="meta-bar">
+        <div class="meta-item">
+            <span class="meta-icon">⏱</span>
+            <span>{esc(L['duration'])}</span>
+            <strong>{esc(duration)}</strong>
+        </div>
+        <div class="status-badge">{esc(L['status'])} {'✓' if all_passed else '✗'}</div>
+    </div>
+</div>
+""")
+
+    # ── Card 3: Pipeline ──
+    pipeline_steps = []
+    for step in steps:
+        step_name = step.get("name", "")
+        step_desc = step.get("desc", "")
+        step_detail = step.get("detail", "")
+        step_duration = step.get("duration", "")
+        snap_path = step.get("snapshot", "")
+        rel_img = resolve_snapshot(snap_path) if snap_path else None
+
+        snap_html = ""
+        if rel_img:
+            snap_html = f"""
+        <div class="pipeline-snap" onclick="openLightbox(this.querySelector('img').src)" title="{esc(step_name)} — {esc(step_desc)}">
+            <img src="{esc(rel_img)}" alt="{esc(step_name)}" loading="lazy">
+            <div class="pipeline-snap-caption">{esc(L['click_hint'])}</div>
+        </div>"""
+
+        dur_html = ""
+        if step_duration:
+            dur_html = f'<span class="pipeline-duration">{esc(step_duration)}</span>'
+
+        status = step.get("status", "PASS")
+        status_cls = "pipeline-status--pass" if status == "PASS" else "pipeline-status--fail"
+
+        detail_html = ""
+        if step_detail:
+            detail_html = f'<div class="pipeline-detail">{esc(step_detail)}</div>'
+
+        pipeline_steps.append(f"""
+    <div class="pipeline-step">
+        <div class="pipeline-dot"></div>
+        <div class="pipeline-card">
+            <div class="pipeline-header">
+                <span class="pipeline-step-name">{esc(step_name)}</span>
+                <span class="pipeline-step-desc">{esc(step_desc)}</span>
+                {dur_html}
+                <span class="pipeline-status {status_cls}">{esc(status)}</span>
+            </div>
+            {detail_html}
+            {snap_html}
+        </div>
+    </div>""")
+
+    if pipeline_steps:
+        parts.append(f"""
+<div class="card entrance-card3">
+    <div class="card-title">{esc(L['pipeline'])}</div>
+    <div class="pipeline">
+        {''.join(pipeline_steps)}
+    </div>
+</div>
+""")
+
+    # ── Lightbox overlay ──
+    parts.append("""
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <div class="lightbox-close" onclick="closeLightbox()" aria-label="Close">✕</div>
+    <img id="lightbox-img" src="" alt="">
+</div>
+""")
+
+    # ── Lightbox JS ──
+    parts.append("""
+<script>
+function openLightbox(src) {
+    var lb = document.getElementById('lightbox');
+    var img = document.getElementById('lightbox-img');
+    img.src = src;
+    lb.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+    var lb = document.getElementById('lightbox');
+    lb.classList.remove('active');
+    document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeLightbox();
+});
+</script>
+""")
+
+    # ── Footer ──
+    parts.append(f"""
+<div class="footer">
+    Outlook Tencent Invitation Pipeline &middot; <span>{esc(data.get('start', '')[:10] if data.get('start') else '')}</span>
+</div>
+""")
+
+    parts.append('</div></body></html>')
+    return "\n".join(parts)
+
+
+def _parse_json_with_path_repair(raw: str) -> dict:
+    """Parse a JSON string, auto-repairing Windows backslash paths on failure.
+
+    When --data is passed via shell, Windows paths like ``D:\\workspace\\...``
+    contain backslash sequences (``\\w``, ``\\s``, ``\\b``) that ``json.loads``
+    rejects as invalid escapes.  Forward slashes are valid JSON *and* work on
+    Windows, so the repair simply swaps ``\\`` → ``/`` and retries.
+    """
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+
+    # Auto-repair: convert backslashes to forward slashes.
+    # Safe because: (a) the first parse would have succeeded if the string
+    # contained *legitimate* JSON escapes like \\n, \\t, \\"; (b) forward
+    # slashes are valid in JSON without escaping and are accepted by all
+    # Windows file APIs.
+    repaired = raw.replace("\\", "/")
+    try:
+        return json.loads(repaired)
+    except json.JSONDecodeError as e:
+        print(f"ERROR: Invalid JSON in --data (even after path repair): {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_generate(args):
+    """Parse --data JSON or --data-file and write the HTML report."""
+    if args.data_file:
+        with open(args.data_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    else:
+        data = _parse_json_with_path_repair(args.data)
+
+    # Merge --model override
+    if args.model:
+        data["model"] = args.model
+
+    snap_dir = data.get("snapshot_dir", "")
+    if not snap_dir or not os.path.isdir(snap_dir):
+        print(f"ERROR: snapshot_dir does not exist: {snap_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    # Force UTF-8 on Windows
+    if sys.platform == "win32":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+    html_content = render_html(data)
+
+    output_path = os.path.join(snap_dir, "report.html")
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    print(f"HTML report written to: {output_path}")
+
+    # Auto-open if requested
+    if args.open:
+        import webbrowser
+        abs_path = os.path.abspath(output_path)
+        webbrowser.open(f"file:///{abs_path.replace(os.sep, '/')}")
+        print("Opened in default browser.")
+
+
+def main():
+    if sys.platform == "win32":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+    parser = argparse.ArgumentParser(
+        description="Generate fancy HTML report for Outlook Tencent Meeting pipeline"
+    )
+    data_group = parser.add_mutually_exclusive_group(required=True)
+    data_group.add_argument(
+        "--data", default=None,
+        help="JSON string with all report data (meeting params, steps, snapshots, tokens)"
+    )
+    data_group.add_argument(
+        "--data-file", default=None,
+        help="Path to JSON file with report data (alternative to --data)"
+    )
+    parser.add_argument(
+        "--model", default="",
+        help="LLM model name — overrides 'model' in data dict"
+    )
+    parser.add_argument(
+        "--open", action="store_true", default=False,
+        help="Auto-open the generated HTML in the default browser"
+    )
+    args = parser.parse_args()
+    cmd_generate(args)
+
+
+if __name__ == "__main__":
+    main()

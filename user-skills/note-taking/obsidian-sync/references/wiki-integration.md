@@ -3,7 +3,7 @@
 ## Wiki Location
 
 ```
-$OBSIDIAN_VAULT\wiki\
+D:\obsidian\2026\wiki\
 ├── SCHEMA.md              # tag taxonomy, conventions, page thresholds
 ├── index.md               # content catalog (alphabetical by type)
 ├── log.md                 # append-only chronological log
@@ -18,7 +18,7 @@ $OBSIDIAN_VAULT\wiki\
     └── assets(素材)/
 ```
 
-Memory is stored separately at `$OBSIDIAN_VAULT\memory(记忆)/` (independent of wiki).
+Memory is stored separately at `D:\obsidian\2026\memory(记忆)/` (independent of wiki).
 
 ## Frontmatter Template
 

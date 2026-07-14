@@ -156,7 +156,7 @@ md_text = re.sub(r'\n{4,}', '\n\n\n', md_text)  # collapse excessive blank lines
 ```python
 html_to_md(
     "D:/workspace/project/docs/diagrams/some-diagram.html",
-    "$OBSIDIAN_VAULT/wiki/concepts(概念)/some-diagram.md"
+    "D:/obsidian/2026/wiki/concepts(概念)/some-diagram.md"
 )
 ```
 

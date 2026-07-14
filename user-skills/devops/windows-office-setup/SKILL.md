@@ -1,7 +1,7 @@
 ---
 name: windows-office-setup
 description: Install classic Outlook / Office on Windows via ODT, configure proxy layers (WinHTTP vs WinINET), and manage language packs. Covers pitfalls with headless ODT, Office auth proxy issues, and language pack quirks.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Windows Office Setup & Proxy Configuration
@@ -12,6 +12,7 @@ Installing and configuring classic Outlook (COM-based, not the new WebView2 Outl
 
 - User needs classic Outlook (for COM add-ins, plugins like Tencent Meeting)
 - Office sign-in fails with 0x80190001 or "No Network Connection"
+- Outlook hangs at "Loading Profile" splash screen, never reaches inbox
 - Office language switch doesn't take effect
 - ODT setup.exe fails silently (exit 127)
 
@@ -57,6 +58,60 @@ netsh winhttp show proxy
 ### If VPN TUN mode is active (e.g., "Meta Tunnel" adapter)
 
 The VPN creates a virtual adapter that routes ALL traffic. In this case, the simplest fix for Office sign-in is to disable the VPN/proxy temporarily, sign in once, then re-enable. Subsequent token refreshes use WinHTTP which handles proxy bypass correctly.
+
+### Outlook stuck at "Loading Profile"
+
+Outlook Classic shows "Loading Profile" and hangs indefinitely during startup. This
+happens when Outlook can't reach Exchange/Office 365 servers during profile load —
+the splash screen stays visible but the inbox never materializes.
+
+**Diagnostic flow:**
+
+1. **Check if Outlook process exists:** `tasklist /FI "IMAGENAME eq OUTLOOK.EXE"`
+   - Not running → Outlook hasn't started (or crashed silently).
+   - Running but no visible window → stuck in profile load.
+
+2. **Check proxy state:**
+   ```
+   netsh winhttp show proxy
+   netstat -ano | findstr 7897    # or your proxy port
+   ```
+   WinHTTP MUST have proxy set if using system proxy (not TUN mode).
+   If WinHTTP shows "直接访问(没有代理服务器)" but system proxy is active →
+   this is the most common cause.
+
+3. **Check for TUN mode interference:**
+   ```
+   ipconfig | findstr -i "tunnel\\|meta\\|vpn"
+   netsh interface show interface | findstr -i "meta\\|vpn"
+   ```
+   If a "Meta" or VPN TUN adapter is present, traffic routes through it.
+   **Pitfall:** TUN adapters can show "已连接" (connected) before routing is
+   fully operational. Outlook's startup Autodiscover/Exchange requests hit
+   the TUN during this window → hang. The same Outlook instance may launch
+   fine 60 seconds later when routing stabilizes.
+
+**Fixes (in order of least destructive):**
+
+1. **Wait and retry** — TUN routing often stabilizes after 30-60 seconds. Kill
+   stuck OUTLOOK.EXE (`taskkill /F /IM OUTLOOK.EXE`) and relaunch.
+
+2. **Restart the proxy tunnel** — restart Clash Verge or equivalent. This
+   reinitializes the TUN adapter cleanly.
+
+3. **Set WinHTTP proxy** (even with TUN, gives Outlook a fallback path):
+   ```powershell
+   Start-Process netsh -ArgumentList 'winhttp set proxy proxy-server="127.0.0.1:7897"' -Verb RunAs -Wait
+   ```
+
+4. **Disable TUN, use system proxy** — in Clash Verge, turn off TUN mode and
+   enable system proxy. Outlook then routes through WinINET → port 7897,
+   bypassing TUN adapter race conditions entirely.
+
+**Verification:** After any fix, Outlook should show
+"Connected to: Microsoft Exchange" in the status bar (bottom-right).
+If it still hangs, escalate to add-in conflicts: launch Outlook in safe mode
+(`outlook.exe /safe`) to rule out COM add-in interference.
 
 ## Installing classic Outlook via ODT
 
@@ -225,3 +280,4 @@ Get-ChildItem "HKCU:\SOFTWARE\Microsoft\Office\16.0\Common\LanguageResources\Ins
 - `references/office-proxy-debug.md` — detailed proxy debugging for Office 0x80190001
 - `references/product-id-mismatch.md` — why ODT fails after OfficeSetup.exe consumer install (O365HomePremRetail vs O365ProPlusRetail), language pack provisioning failure diagnosis
 - `references/language-pack-stuck-diagnosis.md` — real session evidence: registry says zh-CN, InstalledLanguages empty, OutlookChangeInstallLanguage: YES stuck forever
+- `references/loading-profile-tun-race.md` — session evidence: Outlook "Loading Profile" hang caused by TUN adapter race condition; diagnostic output and resolution pattern

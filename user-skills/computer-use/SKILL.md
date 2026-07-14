@@ -33,6 +33,61 @@ in this skill is a higher-level Hermes vocabulary; the raw cua-driver
 MCP tools (which a different agent harness would see) are NOT what you
 call — call the `computer_use` actions documented below.
 
+## Setup
+
+### Install cua-driver binary
+
+```
+hermes computer-use install
+```
+
+This downloads and installs the cua-driver binary (to
+`%LOCALAPPDATA%\Programs\Cua\cua-driver\bin\` on Windows,
+`~/.local/bin/` on Linux, etc.).
+
+### Register cua-driver as an MCP server in Hermes
+
+After install, the Hermes `computer_use` tool needs cua-driver visible
+as an MCP server.  **`hermes computer-use install` does NOT add the MCP
+config entry automatically** — you must add it yourself.
+
+**PITFALL: `~/.hermes/config.yaml` is protected.**  You cannot edit it
+with `patch`, `write_file`, or `sed`.  Use `hermes config` exclusively:
+
+```bash
+# Get the path for your platform
+cua-driver mcp-config --client hermes
+
+# Then set the entries (example for Windows):
+hermes config set mcp_servers.cua-driver.command "C:\\Users\\...\\bin\\cua-driver.exe"
+hermes config set 'mcp_servers.cua-driver.args[0]' mcp
+```
+
+### Reload or restart
+
+The `computer_use` tool is NOT available in the current session after
+config changes.  The user must either run `/reload-mcp` inside an
+active Hermes session, or restart Hermes.  **Do not try to call
+`computer_use` until the tool appears in your tool list** — the skill
+itself says "Load this skill whenever the `computer_use` tool is
+available."
+
+### Verify
+
+```bash
+hermes computer-use status    # reports "cua-driver: OK" when healthy
+hermes computer-use doctor    # structured health checks
+```
+
+For a complete Windows end-to-end walkthrough with exact commands, see
+`references/windows-setup.md`.
+
+**PITFALL: `hermes computer-use status` may report "not installed"**
+even after a successful binary install** if cua-driver is not on
+`PATH` in the current shell.  The Hermes wrapper searches `PATH`
+rather than the known install location.  This does NOT block the
+MCP-based `computer_use` tool — it only affects the CLI wrapper.
+
 ## The canonical workflow
 
 **Step 1 — Capture first.** Almost every task starts with:
@@ -203,12 +258,19 @@ in your conversation context.
 | Symptom | Likely cause + remedy |
 |---|---|
 | `cua-driver not installed` | Run `hermes computer-use install`, or `hermes tools` and enable Computer Use |
+| Binary installed, but `computer_use` tool still missing from toolset | MCP server config likely missing. Run `cua-driver mcp-config --client hermes` and add the output to `~/.hermes/config.yaml` under `mcp_servers` via `hermes config set`. Then restart or `/reload-mcp`. |
+| `hermes computer-use status` says "not installed" but binary exists | The CLI wrapper searches `PATH`, which may not include the install dir in the current shell. The MCP tool side is unaffected — verify with `hermes computer-use doctor` instead. |
 | Captures consistently return empty / "no on-screen window" | On Linux: DISPLAY may not be set (X11) or you're on pure Wayland — ask the user to run `hermes computer-use doctor`. On Windows: you may be in Session 0 (SSH session) instead of the interactive desktop — see the cua-driver `WINDOWS.md` deep-dive |
 | Element index stale ("Element N not in cache") | SOM indices are only valid until the next `capture`. Re-capture before clicking. The wrapper carries opaque `element_token`s for stale-detection; you'll see an explicit error rather than a wrong click |
 | Click had no effect | Re-capture and verify. A modal that wasn't visible before may be blocking input. Dismiss it (usually `escape` or click its close button) before retrying |
 | Type text disappears into a terminal emulator | cua-driver detects terminals (Ghostty, iTerm2, Terminal.app, Windows Terminal, mintty, etc.) and routes through key-event synthesis — should "just work" on a recent cua-driver. If it doesn't, ask the user to run `hermes computer-use doctor` |
 | `blocked pattern in type text` | You tried to `type` a shell command matching the dangerous-pattern block list (`curl ... \| bash`, `sudo rm -rf`, etc.). Break the command up or reconsider |
+| UIA tree returns 0 elements / `BuildUpdatedCache failed: Pattern not found (0x80040201)` on Office windows | **Office custom forms (Outlook meeting windows, `rctrl_renwnd32` class) don't support `IUIAutomationCacheRequest`.** You get a screenshot but zero `element_index` values. See the dedicated section below for the fallback workflow — pixel-click + `type_text` with explicit `window_id` IS safe when done correctly. Full reproduction in `references/office-custom-forms.md`. |
+| `type_text` caused the target app to crash/exit | **This is caused by NOT specifying `window_id` when multiple windows exist.** When there are 3+ Outlook windows, `type_text` without `window_id` routes input to the wrong window (usually the oldest one), crashing the app. **ALWAYS pass `window_id` to `type_text` — never omit it.** When `window_id` is provided, `type_text` has been verified safe against Outlook meeting windows. |
+| App crashed mid-task; relaunch shows stale windows from previous attempt | Kill the app via `kill_app(pid)`, relaunch clean, then verify with `list_windows`. Stale windows from failed attempts confuse both you and the user — the user sees N windows, you detect fewer, discrepancy wastes turns. Clean state is a precondition for retry. |
+| Outlook meeting window returns `BuildUpdatedCache failed: Pattern not found (0x80040201)` | Outlook custom forms (`rctrl_renwnd32` class) don't support `IUIAutomationCacheRequest`. This is a cua-driver hard limit — there's no non-cache fallback for UIA tree traversal. For filling meeting forms, use the COM hybrid approach (see below). For dismissing popups / closing windows from the meeting window, use pixel coordinates — the close button is at the top-right corner. |\n| Claude Code reports cua-driver MCP unavailable but works in another project | Per-project `.claude/mcp.json` missing. Claude Code reads MCP servers per-project, not globally. Create `.claude/mcp.json` with the cua-driver entry, then `/mcp` or restart — Claude Code does NOT hot-reload. See `references/claude-code-mcp-troubleshooting.md`. |
 | Anything else weird | **First action: ask the user to run `hermes computer-use doctor`.** It runs the cua-driver `health_report` MCP tool and prints a structured per-check matrix. Their output tells you (and them) exactly what's wrong |
+| Wrong parameter on `get_window_state` (e.g. `include_screenshot: false`) — model hallucinates a non-existent parameter name for capture mode | Some models (observed: Qwen 3.6) invent `include_screenshot` instead of using the documented `capture_mode`. The bogus param is silently ignored, and the call falls back to the daemon's default `capture_mode` (usually `som`), silently including screenshots in every call (~100K for 7 calls). When combined with missing prompt caching (common for Qwen via DashScope Anthropic compat layer), total token inflation can reach 8-10x. See `references/token-analysis.md`. | Always pass `capture_mode="ax"` for text-only UIA trees. Explicit `capture_mode` overrides the default; nonexistent params don't. For persistent token issues, also verify prompt caching is active — the 8-10x factor dwarfs screenshot savings. |
 
 ## When NOT to use `computer_use`
 
@@ -222,6 +284,22 @@ in your conversation context.
   `type` into an editor window.
 - **Shell commands** — use `terminal`, not `type` into Terminal.app /
   Windows Terminal / gnome-terminal.
+
+## Outlook meeting forms — when cua-driver can't drive the fields
+
+Outlook meeting invite windows use custom form controls (`rctrl_renwnd32`)
+that don't support cua-driver's UIA cache-based tree traversal. The meeting
+window can be opened and closed via cua-driver (pixel clicks on the Ribbon
+buttons work), but **field-level interaction fails** — Tab navigation,
+`type_text` into fields, and clicking Send are all unreliable or impossible.
+
+**The hybrid workaround:** Use cua-driver to navigate the UI (open the
+meeting window, handle plugin dialogs), then use **Outlook COM automation**
+(`win32com.client`) to fill form fields and send. COM bypasses the UIA
+tree entirely — it directly manipulates the underlying `AppointmentItem`.
+
+See `references/outlook-com-hybrid.md` for the full pipeline, verification
+script, and the `outlook_com.py` tool (~150 lines).
 
 ## Going deeper — read the cua-driver skill pack
 
@@ -261,3 +339,13 @@ When `cua-driver skills install` autodetects Hermes (planned follow-up
 in trycua/cua), this happens automatically on install. Until then, ask
 the user to run the command and the pack lands in their agent skill
 space alongside this skill.
+
+## Token analysis
+
+When token consumption with CUA tasks seems unreasonably high (and
+you've already eliminated screenshot re-reads and `capture_mode`
+issues), the dominant factor is usually **prompt caching** — whether
+the LLM provider supports it, not the size of individual tool outputs.
+See `references/token-analysis.md` for diagnosis methodology, the
+`include_screenshot` hallucination pattern, and a ranked breakdown of
+token-cost factors.

@@ -1,0 +1,21 @@
+# Codex config.toml — custom provider (DeepSeek) example
+# Live at: ~/.codex/config.toml
+# Codex CLI 0.142.5
+
+model_provider = "custom"
+model = "deepseek-v4-flash"
+model_reasoning_effort = "high"
+disable_response_storage = true
+model_catalog_json = "cc-switch-model-catalog.json"
+
+[model_providers]
+[model_providers.custom]
+name = "deepseek"
+base_url = "https://api.deepseek.com"
+wire_api = "responses"
+requires_openai_auth = true
+
+# NOTE: wire_api = "responses" uses OpenAI's Responses API protocol.
+# DeepSeek only supports Chat Completions API — this config requires
+# a translation proxy (litellm, one-api) to route Responses → Chat Completions.
+# Alternative: try wire_api = "chat_completions" if your Codex version supports it.

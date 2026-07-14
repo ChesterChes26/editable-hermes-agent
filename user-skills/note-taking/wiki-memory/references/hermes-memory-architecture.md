@@ -18,7 +18,7 @@ Traced 2026-06-17. Covers the full pipeline from system prompt injection to Obsi
 │ Disk Storage                                      │
 │   ~/.hermes/memories/MEMORY.md (2,200 char cap)  │
 │   ~/.hermes/memories/USER.md   (1,375 char cap)  │
-│   $OBSIDIAN_VAULT/memory(记忆)/ (memory files)   │
+│   D:/obsidian/2026/memory(记忆)/ (memory files)   │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -57,7 +57,7 @@ The snapshot refreshes on next session start. This preserves prefix cache across
 
 The MEMORY.md index (lines like `→ pause before risky ops | driving/behavior`) is injected into EVERY session's system prompt by `system_prompt.py:343-352`.
 
-But reading the actual memory files (`$OBSIDIAN_VAULT/memory(记忆)/driving(行为)/behavior.md`) is ENTIRELY LLM-driven:
+But reading the actual memory files (`D:/obsidian/2026/memory(记忆)/driving(行为)/behavior.md`) is ENTIRELY LLM-driven:
 - The `wiki-memory` skill provides the instruction "scan index → load relevant files"
 - This skill is auto-loaded for WeChat/QQ via env vars, but NOT for CLI
 - No code anywhere parses the index lines or auto-reads wiki files

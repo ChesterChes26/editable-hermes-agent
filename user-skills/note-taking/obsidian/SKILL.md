@@ -10,14 +10,14 @@ Use this skill for filesystem-first Obsidian vault work: reading notes, listing 
 
 ## Vault path
 
-**This user's vault:** `$OBSIDIAN_VAULT`
+**This user's vault:** `D:\obsidian\2026`
 
-Use this concrete path directly — do not shell-expand `$OBSIDIAN_VAULT_PATH`. If unset or unreachable, fall back to `$OBSIDIAN_VAULT`.
+Use this concrete path directly — do not shell-expand `$OBSIDIAN_VAULT_PATH`. If unset or unreachable, fall back to `D:\obsidian\2026`.
 
 ## Vault Layout
 
 ```
-$OBSIDIAN_VAULT\
+D:\obsidian\2026\
 ├── inbox/                     # obsidian-sync image archive
 ├── memory(记忆)/              # agent behavioral memory (independent)
 │   ├── index.md
@@ -104,6 +104,10 @@ To systematically compare a codebase against existing wiki documentation and ide
 ## Translating structured notes to another language
 
 When asked to produce a translated copy of a structured markdown note (bilingual reports, TOC with anchors, collapsible sections, scores, tags), see `references/translate-markdown-notes.md` for the full workflow: chunked reading, structure-preservation checklist, section header translations, and a verifier script pattern to cross-check source-vs-target completeness.
+
+## Creating project review pages
+
+For multi-gate/multi-phase projects, create a dedicated directory with per-gate review pages. See `references/project-review-pages.md` for the full template and conventions.
 
 ## Reorganizing vault content (bulk moves + wikilinks)
 
