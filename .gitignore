@@ -195,6 +195,17 @@ user-skills/**
 !user-skills/**/scripts/
 !user-skills/**/scripts/**
 
+# Re-ignore runtime outputs (must come AFTER whitelist)
+user-skills/**/_example_snapshots/
+user-skills/**/snapshots/
+user-skills/**/DESCRIPTION.md
+user-skills/**/.usage.json
+user-skills/**/.bundled_manifest
+user-skills/**/.curator_state
+user-skills/**/.curator_backups/
+user-skills/**/.hub/
+user-skills/**/*.lock
+
 # Un-ignore specific files
 !user-skills/**/SKILL.md
 
