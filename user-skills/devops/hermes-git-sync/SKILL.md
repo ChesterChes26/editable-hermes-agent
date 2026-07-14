@@ -121,41 +121,46 @@ git push origin <branch-name>
 Add a restore guide at repo root. See `references/setup-template.md` for a
 ready-to-use template.
 
-## Restore on new machine
+## Restore on new machine (junction-based)
 
 ```bash
-# Install Hermes first, then:
+# 1. Install Hermes first, then:
 git clone https://github.com/<user>/hermes-agent.git ~/.hermes/hermes-agent
 cd ~/.hermes/hermes-agent
 git checkout <branch-name>
 
-# Sync all five runtime directories (see incremental sync for rationale):
+# 2. Create empty runtime directories
 cd ~/.hermes
-mkdir -p plugins
-cp -r hermes-agent/user-plugins/* plugins/
+mkdir -p skills plugins hooks scripts memories
 
-rm -rf skills
-cp -r hermes-agent/user-skills skills
+# 3. Create reverse junctions (runtime → repo)
+# Windows PowerShell:
+New-Item -ItemType Junction -Path skills -Target hermes-agent\user-skills
+New-Item -ItemType Junction -Path plugins -Target hermes-agent\user-plugins
+New-Item -ItemType Junction -Path hooks -Target hermes-agent\user-config\hooks
+New-Item -ItemType Junction -Path scripts -Target hermes-agent\user-config\scripts
+New-Item -ItemType Junction -Path memories -Target hermes-agent\user-config\memories
 
-mkdir -p hooks
-cp -r hermes-agent/user-config/hooks/* hooks/
+# Windows CMD:
+mklink /J skills hermes-agent\user-skills
+mklink /J plugins hermes-agent\user-plugins
+mklink /J hooks hermes-agent\user-config\hooks
+mklink /J scripts hermes-agent\user-config\scripts
+mklink /J memories hermes-agent\user-config\memories
 
-mkdir -p scripts
-cp hermes-agent/user-config/scripts/* scripts/
+# 4. Verify junctions work
+ls skills/  # should show skill directories
+ls plugins/ # should show plugin directories
 
-mkdir -p memories
-cp hermes-agent/user-config/memories/* memories/
-
-cp hermes-agent/user-config/config.yaml config.yaml
-cp hermes-agent/user-config/cron/jobs.json cron/
-
-# Worker profile (if exists)
-rm -rf profiles/worker && mkdir -p profiles/worker
-cp hermes-agent/user-config/profiles/worker/config.yaml profiles/worker/
-cp -r hermes-agent/user-config/profiles/worker/skills profiles/worker/skills
-
-# Manually restore .env (NEVER in git)
+# 5. Manually restore .env (NEVER in git)
+# Copy .env from backup or create new one with API keys
 ```
+
+**Why junctions instead of copy?**
+- Files live in repo, junctions point to them
+- `git pull` updates files, Hermes sees changes immediately
+- No manual sync needed between runtime and repo
+- `git status` in repo shows real state
 
 ## Updating from upstream
 
@@ -371,18 +376,26 @@ Full implementation plan: see `SETUP_SYNC.md` in repo root.
 
 ### Implementation: Reverse junction (chosen path)
 
+**CRITICAL: Junction direction matters for multi-machine sync**
+
 ```text
 ~/.hermes/skills/              → junction → ~/.hermes/hermes-agent/user-skills/
 ~/.hermes/plugins/             → junction → ~/.hermes/hermes-agent/user-plugins/
 ~/.hermes/hooks/               → junction → ~/.hermes/hermes-agent/user-config/hooks/
 ~/.hermes/scripts/             → junction → ~/.hermes/hermes-agent/user-config/scripts/
-~/.hermes/memories/USER.md     → junction → ~/.hermes/hermes-agent/user-config/memories/USER.md
+~/.hermes/memories/            → junction → ~/.hermes/hermes-agent/user-config/memories/
 ```
 
+**Direction: runtime → repo (NOT repo → runtime)**
+
 - Hermes reads `~/.hermes/skills/` as before, but actual files live in repo
-- Git can track junction contents on Windows (treats as normal directory)
+- Git tracks junction contents on Windows (treats as normal directory)
 - `git status` in hermes-agent repo shows real runtime state
-- Risk: junctions can be silently replaced with real dirs by some tools
+- **Multi-machine sync works**: new machine pulls repo, creates junctions pointing to repo dirs
+
+**Why direction matters:**
+- ❌ Wrong: `repo/user-skills/ → runtime/skills/` — Git creates empty dirs on new machine, runtime is empty
+- ✅ Correct: `runtime/skills/ → repo/user-skills/` — Git has files, junction points to them
 
 ### What this means for the old workflow
 
@@ -397,6 +410,46 @@ Full implementation plan: see `SETUP_SYNC.md` in repo root.
 - Some tools (rm -rf + recreate) can replace junction with real dir silently
 - New machine restore needs junction recreation script
 - `mklink /J <link> <target>` for directories; no admin needed
+
+### .gitignore whitelist pattern (working approach)
+
+**Problem**: Default deny + explicit allow doesn't work with `dir/*` because Git won't traverse into subdirs.
+
+**Solution**: Three-layer pattern:
+1. `dir/*` — ignore files at root
+2. `!dir/*/` — allow traversal into subdirs
+3. `dir/**/PATTERN` — ignore specific files at any depth
+
+**Example for user-skills:**
+```gitignore
+# Layer 1: Ignore files at root
+user-skills/*
+
+# Layer 2: Allow traversal into subdirs
+!user-skills/*/
+
+# Layer 3: Ignore specific patterns at any depth
+user-skills/**/DESCRIPTION.md
+user-skills/**/snapshots/
+user-skills/**/_example_snapshots/
+user-skills/**/__pycache__/
+user-skills/**/*.pyc
+user-skills/**/*.lock
+user-skills/**/.usage.json
+user-skills/**/.bundled_manifest
+user-skills/**/.curator_state
+user-skills/**/.curator_backups/
+user-skills/**/.hub/
+
+# Then whitelist what to track
+!user-skills/*/SKILL.md
+!user-skills/*/references/
+!user-skills/*/references/**
+!user-skills/*/templates/
+!user-skills/*/templates/**
+```
+
+**Key insight**: Order matters. `!dir/*/` must come BEFORE `dir/**/PATTERN` for traversal to work.
 
 ### Privacy file rules (what to track vs not)
 

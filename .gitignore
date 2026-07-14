@@ -203,7 +203,11 @@ user-config/hooks/**/__pycache__/
 user-config/hooks/**/*.pyc
 
 # --- user-config/scripts/ ---
+# Ignore all files in scripts/
 user-config/scripts/*
+# Un-ignore subdirectories first (so git can look inside)
+!user-config/scripts/*/
+# Then un-ignore specific file types
 !user-config/scripts/*.py
 !user-config/scripts/*.sh
 !user-config/scripts/*.bat
@@ -215,8 +219,37 @@ user-config/memories/*
 user-config/memories/MEMORY.md
 user-config/memories/*.lock
 
-# --- Profile memories (contain sensitive data) ---
+# --- Profile directories ---
+# Profile skills follow same rules as user-skills/
+user-config/profiles/*/skills/**
+!user-config/profiles/*/skills/*/
+!user-config/profiles/*/skills/*/*/
+!user-config/profiles/*/skills/*/*/*/
+!user-config/profiles/*/skills/*/*/*/*/
+
+# Ignore privacy/runtime files in profile skills at ANY depth
+user-config/profiles/*/skills/**/DESCRIPTION.md
+user-config/profiles/*/skills/**/MEMORY.md
+user-config/profiles/*/skills/**/snapshots/
+user-config/profiles/*/skills/**/_example_snapshots/
+user-config/profiles/*/skills/**/__pycache__/
+user-config/profiles/*/skills/**/*.pyc
+user-config/profiles/*/skills/**/*.lock
+user-config/profiles/*/skills/**/.usage.json
+user-config/profiles/*/skills/**/.bundled_manifest
+user-config/profiles/*/skills/**/.curator_state
+user-config/profiles/*/skills/**/.curator_backups/
+user-config/profiles/*/skills/**/.hub/
+
+# Profile memories contain sensitive data (tokens, account IDs)
 user-config/profiles/*/memories/*
+
+# Profile runtime config (contains provider settings, preferences)
+user-config/profiles/*/config.yaml
+
+# --- User config runtime files ---
+user-config/config.yaml
+user-config/cron/jobs.json
 
 # --- Global runtime artifacts ---
 *.pyc
