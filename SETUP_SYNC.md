@@ -118,7 +118,6 @@ user-config/memories/*
 
 # Skills
 !user-skills/*/SKILL.md
-!user-skills/*/DESCRIPTION.md
 !user-skills/*/references/
 !user-skills/*/references/**
 !user-skills/*/templates/
