@@ -11,25 +11,33 @@ tags: [skillopt, evaluation, workflow, claude-code]
 
 Running SkillOpt-Sleep optimization on Claude Code skills. Covers eval isolation, task design, and multi-night execution.
 
-## Core Architecture: Eval Isolation
+## Core Architecture: Eval Rules Serve Dual Purpose (confirmed 2026-07-15)
 
-**Problem**: SkillOpt's replay mode requires agents to describe complete workflows in a single text response. This produces eval-specific rules ("output all 9 steps in one response") that conflict with real execution (step-by-step tool calls). If these rules land in the production SKILL.md, they pollute it.
+**Observation**: The `SKILL-eval.md` isolation pattern is **no longer necessary**.
 
-**Solution**: `SKILL-eval.md` pattern — separate eval skill from production skill.
+**Why**: SkillOpt appends learned rules to a `<!-- SKILLOPT-SLEEP:LEARNED START -->` block at the end of SKILL.md. These rules (e.g., "Response Completeness Gate", "Response Length Priority") serve a **dual purpose**:
 
-```
-SKILL.md          ← production (real execution, step-by-step tool calls)
-SKILL-eval.md     ← eval only (SKILL.md + eval rules appended)
-sync-eval-skill.sh  ← copies SKILL.md → SKILL-eval.md + appends eval rules
-run-skillopt.sh     ← wrapper: sync then run with --target-skill-path SKILL-eval.md
-```
+- **Eval mode** (SkillOpt replay): Claude reads SKILL.md → outputs text → judge scores. Here the rules matter because judge can only evaluate text.
+- **Real execution**: Agent reads SKILL.md → executes tools step-by-step. The structured response rules **also help here** by forcing the agent to explicitly think through error handling at each step. This prevents the agent from getting stuck at any phase (e.g., UI element not found, COM connection failed, popup blocking interaction). The "Current State, Goal, Method, Error Handling" structure per step is essentially a pre-execution checklist.
 
-**Rules**:
-- Never put eval rules in SKILL.md
-- SKILL-eval.md is in .gitignore (generated file)
-- Always run `./sync-eval-skill.sh` before SkillOpt
+**Token cost is a preventive investment**: ~1,200-1,800 tokens per response for structured output. This costs less than the tokens wasted when an agent blindly retries a failed step 10 times.
+
+**Decision framework** (confirmed by user):
+1. Does this edit fix a real bug? → Adopt into main skill body
+2. Does this edit help both eval and real execution? → Adopt into main skill body (not just LEARNED block)
+3. Does this edit genuinely conflict with real execution? → Reject (verify conflicts yourself, don't trust subagent flagging)
+
+**⛔ Subagent reviews can overstate "conflicts"**: When reviewing SkillOpt edits via subagent delegation, the subagent may flag "conflicts" with existing instructions that don't actually exist. Observed 2026-07-15: subagent flagged 3 "conflicts" (Closing Protocol vs Response Structure, redundant error handling, token optimization contradiction) — all were misidentified. Always verify conflicts yourself before rejecting edits.
+
+**Still apply**:
 - Delete CLAUDE.md after each night (memory edits leak into next night)
 - Reset state.json when switching task sets (otherwise old history contaminates baseline)
+
+**Legacy pattern** (no longer needed but kept for reference):
+```
+SKILL-eval.md     ← eval only (SKILL.md + eval rules appended)
+sync-eval-skill.sh  ← copies SKILL.md → SKILL-eval.md + appends eval rules
+```
 
 ## SkillOpt Multi-Night Mechanics
 
@@ -89,7 +97,10 @@ Tasks need these fields for SkillOpt to accept them:
 
 3. **CLAUDE.md leak**: `--auto-adopt` generates CLAUDE.md (memory edits). If not deleted, these persist into the next night and contaminate results.
 
-4. **Eval rules in production skill**: The 4 edits from V2 enhanced (planning-before-execution, date resolution, workflow completeness, error handling quality) are ALL eval-specific. They force single-response output that contradicts real step-by-step execution. Never commit these to SKILL.md.
+4. **Eval rules are neutral, but review before adopting**: SkillOpt's learned rules (e.g., "Response Completeness Gate", "Response Length Priority") are neutral for real execution — they help eval mode but don't conflict with step-by-step execution. **However**, still review before adopting:
+   - Rules that fix real bugs → adopt into main skill body
+   - Rules that only help eval mode → keep in `LEARNED` block, don't merge
+   - Rules that conflict with real execution → reject
 
 5. **Consolidate hang is NOT fixed by timeout increase or batch splitting**: Increasing `backend.py` timeout from 180s to 600s is INEFFECTIVE — the hang is caused by `claude.exe` crashing at the OS level, not Python timing out. Batch splitting (10 tasks per batch) also does NOT reliably fix it. The issue is likely API-side (rate limiting, model overload). When claude.exe disappears, kill immediately and retry — don't wait 30+ minutes. See `references/consolidate-hang-diagnosis.md` for full diagnosis.
 

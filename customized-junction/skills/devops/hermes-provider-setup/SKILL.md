@@ -448,6 +448,28 @@ this key. Common causes:
   all returned 403 on the same key. Try the exact model ID from the
   provider's console/API docs.
 
+## Tool API Keys (Web Search, etc.)
+
+Some Hermes tools require their own API keys in `.env`, independent of LLM provider configuration.
+
+### Web Search / Extract
+
+`web_search` and `web_extract` use the Parallel.ai plugin by default. If both fail with `PARALLEL_API_KEY environment variable not set`, the key is missing from `.env`.
+
+**This is independent of the Horizon plugin** — Horizon is a separate data pipeline plugin with its own config; it does not provide web search capabilities.
+
+**Fix:** Add to `.env`:
+```
+PARALLEL_API_KEY=***
+```
+
+Alternative search providers (set one of these instead):
+- `EXA_API_KEY=***` (Exa.ai)
+- `TAVILY_API_KEY=***` (Tavily)
+- `FIRECRAWL_API_KEY=***` (Firecrawl)
+
+**Pitfall:** The `.env` template ships with `PARALLEL_API_KEY=` commented out. It must be uncommented and filled in. After adding the key, restart the Hermes session (`/reset` in chat, or relaunch CLI) for the tool to become available.
+
 ## Provider-Specific Notes
 
 - **DashScope (Alibaba)**: `references/dashscope-config.md`

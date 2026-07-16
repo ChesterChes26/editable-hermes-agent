@@ -85,7 +85,7 @@ Total = 6 × n_val + 4 × n_train + 2
 3. **gate judge prompts are ~6K** (larger than replay judge ~1K) because they include the full rubric + response
 4. **No parallelism** — all calls are serial within a phase
 5. **Train replayed twice** — Phase 2 uses original skill, Phase 5 uses improved skill (after skill edits applied)
-6. **Val scored 3 times** — Phase 1 (baseline), Phase 4 (gate skill), Phase 7 (gate memory), Phase 8 (final)
+6. **Val scored 4 times** — Phase 1 (baseline), Phase 4 (gate skill), Phase 7 (gate memory), Phase 8 (final)
 
 ## Why 180s Timeout is Sufficient
 

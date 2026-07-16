@@ -232,6 +232,15 @@ class QQAdapter(BasePlatformAdapter):
         self._pending_responses: Dict[str, asyncio.Future] = {}
         self._seen_messages: Dict[str, float] = {}
 
+        # Auto-loaded skill(s) for every session. Configurable via
+        # config.extra.auto_skill or QQBOT_AUTO_SKILL env var.
+        # Default: "obsidian-sync" to archive all messages to Obsidian.
+        _auto_skill_raw = extra.get("auto_skill") or os.getenv("QQBOT_AUTO_SKILL")
+        if _auto_skill_raw is None:
+            _auto_skill_raw = "obsidian-sync"
+        _auto_skill_raw = str(_auto_skill_raw).strip()
+        self._auto_skill = _auto_skill_raw if _auto_skill_raw else None
+
         # Last inbound message ID per chat — used by send_typing
         self._last_msg_id: Dict[str, str] = {}
         # Typing debounce: chat_id → last send_typing timestamp
@@ -1302,6 +1311,7 @@ class QQAdapter(BasePlatformAdapter):
             media_urls=image_urls,
             media_types=image_media_types,
             timestamp=self._parse_qq_timestamp(timestamp),
+            auto_skill=self._auto_skill,
         )
         await self.handle_message(event)
 
@@ -1367,6 +1377,7 @@ class QQAdapter(BasePlatformAdapter):
             media_urls=image_urls,
             media_types=image_media_types,
             timestamp=self._parse_qq_timestamp(timestamp),
+            auto_skill=self._auto_skill,
         )
         await self.handle_message(event)
 
@@ -1442,6 +1453,7 @@ class QQAdapter(BasePlatformAdapter):
             media_urls=image_urls,
             media_types=image_media_types,
             timestamp=self._parse_qq_timestamp(timestamp),
+            auto_skill=self._auto_skill,
         )
         await self.handle_message(event)
 
@@ -1512,6 +1524,7 @@ class QQAdapter(BasePlatformAdapter):
             media_urls=image_urls,
             media_types=image_media_types,
             timestamp=self._parse_qq_timestamp(timestamp),
+            auto_skill=self._auto_skill,
         )
         await self.handle_message(event)
 

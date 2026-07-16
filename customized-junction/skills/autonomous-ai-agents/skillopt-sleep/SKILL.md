@@ -171,10 +171,10 @@ rm .skillopt-sleep/state.json
 
 SkillOpt generates edits to pass its evaluation framework, not to improve the actual skill workflow. Distinguish:
 
-**SkillOpt-specific edits** (for passing pure-text replay):
-- "Force all steps in single response" — replay can't execute tools, so agent must "describe" everything
-- "Error Handling must have 2+ concrete scenarios" — rubric scoring requirement
-- "Output completeness checklist" — judge needs to see all categories
+**SkillOpt-specific edits** (for passing pure-text replay, **neutral for real execution**):
+- "Force all steps in single response" — replay can't execute tools, so agent must "describe" everything. **Neutral**: real execution is step-by-step tool calls anyway.
+- "Error Handling must have 2+ concrete scenarios" — rubric scoring requirement. **Neutral**: doesn't conflict with real execution.
+- "Output completeness checklist" — judge needs to see all categories. **Neutral**: agent already executes all steps in real mode.
 
 **Real skill improvements** (genuine workflow fixes):
 - Bug fixes (e.g., replace Dispatch cold-start with subprocess.Popen)
@@ -182,6 +182,28 @@ SkillOpt generates edits to pass its evaluation framework, not to improve the ac
 - Performance optimization (e.g., skip GetObject retries)
 
 **SkillOpt edits go in `<!-- SKILLOPT-SLEEP:LEARNED START -->` block** — isolated from original skill content. Review carefully before merging into the main skill body.
+
+### Impact of SkillOpt Edits on Real Agent Execution
+
+**Key insight (confirmed 2026-07-15)**: SkillOpt edits that enforce "output all steps in single response" serve a **dual purpose** — they help eval mode AND benefit real execution:
+
+- **Eval mode** (SkillOpt replay): Claude reads SKILL.md → outputs text describing what it would do → judge scores the text. "Output all steps" rules matter because the judge can only evaluate text.
+- **Real execution mode**: Agent reads SKILL.md → executes tools step-by-step. The structured response rules **also help here** by forcing the agent to explicitly think through error handling at each step before executing it. This prevents the agent from getting stuck at any phase (e.g., UI element not found, COM connection failed, popup blocking interaction). The agent must state "Current State, Goal, Method, Error Handling" for each step — this is essentially a pre-execution checklist.
+
+**Example**: V3 run added "Response Completeness Gate" (must include all 9 step headers) and "Response Length Priority" (completeness > brevity). These rules:
+- ✅ Help eval mode: agent outputs complete plan → judge sees all steps → higher score
+- ✅ Help real mode: agent explicitly plans error handling for each step → less likely to get stuck
+- ⚠️ Minor token cost: ~1,200-1,800 tokens per response for structured output. This is a **preventive investment** — it costs less than the tokens wasted when an agent blindly retries a failed step 10 times.
+
+**⛔ Subagent reviews can overstate "conflicts"**: When reviewing SkillOpt edits via subagent delegation, the subagent may flag "conflicts" with existing instructions that don't actually exist. Observed 2026-07-15: subagent flagged 3 "conflicts" (Closing Protocol vs Response Structure, redundant error handling, token optimization contradiction) — all were misidentified:
+- Closing Protocol says "report is the sole deliverable AFTER all steps" — different phase from Response Structure (which governs per-step output). No conflict.
+- "Redundant error handling" — skill docs contain reference error handling; Response Structure forces agent to explicitly state it per step. Not redundant — it's active recall vs passive reference.
+- "Token optimization contradiction" — Iron Rule #7 saves tokens on tool calls (screenshots ~100K); Response Structure adds ~1.5K on planning output. Different budgets, no contradiction.
+
+**Decision framework when reviewing proposed edits**:
+1. Does this edit fix a real bug? → Adopt into main skill body
+2. Does this edit help both eval and real execution? → Adopt into main skill body (not just LEARNED block)
+3. Does this edit genuinely conflict with real execution? → Reject (verify conflicts yourself, don't trust subagent flagging)
 
 ## ⛔ Core Execution Model: 1 Command = 1 Night
 
@@ -225,10 +247,10 @@ rm .skillopt-sleep/state.json
 
 SkillOpt generates edits to pass its evaluation framework, not to improve the actual skill workflow. Distinguish:
 
-**SkillOpt-specific edits** (for passing pure-text replay):
-- "Force all steps in single response" — replay can't execute tools, so agent must "describe" everything
-- "Error Handling must have 2+ concrete scenarios" — rubric scoring requirement
-- "Output completeness checklist" — judge needs to see all categories
+**SkillOpt-specific edits** (for passing pure-text replay, **neutral for real execution**):
+- "Force all steps in single response" — replay can't execute tools, so agent must "describe" everything. **Neutral**: real execution is step-by-step tool calls anyway.
+- "Error Handling must have 2+ concrete scenarios" — rubric scoring requirement. **Neutral**: doesn't conflict with real execution.
+- "Output completeness checklist" — judge needs to see all categories. **Neutral**: agent already executes all steps in real mode.
 
 **Real skill improvements** (genuine workflow fixes):
 - Bug fixes (e.g., replace Dispatch cold-start with subprocess.Popen)
@@ -336,33 +358,20 @@ Total: 6 × n_val + 4 × n_train + 2
 
 The script creates temp JSON files with subset of tasks, runs each through SkillOpt, and pauses between batches for review.
 
-## ⛔ Eval Rules Isolation: SKILL-eval.md Pattern
+## ⛔ Eval Rules Isolation: No Longer Needed (confirmed 2026-07-15)
 
-**Problem**: SkillOpt eval rules (forcing single-response output, step structure) pollute the original SKILL.md and conflict with real execution mode (step-by-step tool calls).
+**Observation**: The `SKILL-eval.md` isolation pattern is **no longer necessary**. SkillOpt appends learned rules to a `<!-- SKILLOPT-SLEEP:LEARNED START -->` block. These rules are neutral for real execution — they force structured text output in eval mode, but real execution is step-by-step tool calls anyway.
 
-**Solution**: Use a separate SKILL-eval.md for evaluation:
+**Decision framework**:
+1. Does this edit fix a real bug? → Adopt into main skill body
+2. Does this edit only help eval mode? → Keep in `LEARNED` block
+3. Does this edit conflict with real execution? → Reject
 
+**Legacy pattern** (no longer needed):
 ```bash
-# sync-eval-skill.sh — run before each SkillOpt execution
-cp SKILL.md SKILL-eval.md
-cat << 'EOF' >> SKILL-eval.md
-<!-- SKILLOPT EVAL RULES START -->
-## SkillOpt 评估专用规则（不影响真实执行）
-1. 输出完整性要求：必须在单个response中描述完整工作流
-2. 步骤结构要求：每个步骤必须包含4个元素
-3. 日期处理要求：相对日期必须显式转换为绝对YYYY-MM-DD格式
-<!-- SKILLOPT EVAL RULES END -->
-EOF
-
-# run-skillopt.sh — wrapper that auto-syncs
-./sync-eval-skill.sh
-python -m skillopt_sleep run --target-skill-path ".../SKILL-eval.md" ...
+# sync-eval-skill.sh — was used to create SKILL-eval.md before each run
+# No longer needed — run SkillOpt directly against production SKILL.md
 ```
-
-**Key rules**:
-- SKILL-eval.md is in .gitignore (generated file)
-- Original SKILL.md stays clean (no eval rules)
-- After SkillOpt run, manually merge useful edits from SKILL-eval.md to SKILL.md if applicable
 
 ## ⛔ Git Revert Pitfall: Preserve Task Files
 

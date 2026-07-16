@@ -38,34 +38,21 @@ def _call(self, prompt: str, *, max_tokens: int = 1024) -> str:
 A single consolidation with N train tasks and M val tasks produces:
 
 ```
-Phase 1: Baseline Scoring (val tasks)
-  - M attempts + M judges = 2M calls
+Phase 1: Baseline Scoring (val)       = 2M calls
+Phase 2: Replay Train (skill evolve)  = 2N calls
+Phase 3: Reflect (skill)              = 1 call
+Phase 4: Gate Apply (skill)           = 2M calls
+Phase 5: Replay Train (memory evolve) = 2N calls
+Phase 6: Reflect (memory)             = 1 call
+Phase 7: Gate Apply (memory)          = 2M calls
+Phase 8: Final Scoring (val)          = 2M calls
 
-Phase 2: Replay Train (skill evolution)
-  - N attempts + N judges = 2N calls
-
-Phase 3: Reflect (skill)
-  - 1 reflect call
-
-Phase 4: Gate Apply (skill)
-  - M attempts + M judges = 2M calls
-
-Phase 5: Replay Train (memory evolution)
-  - N attempts + N judges = 2N calls
-
-Phase 6: Reflect (memory)
-  - 1 reflect call
-
-Phase 7: Gate Apply (memory)
-  - M attempts + M judges = 2M calls
-
-Phase 8: Final Scoring
-  - M attempts + M judges = 2M calls
-
-Total: 4M + 4N + 2 calls
+Total: 6M + 4N + 2 calls
 ```
 
-**Example**: 7 train + 2 val = 4(2) + 4(7) + 2 = 38 calls (observed 42 in practice, some phases may have extra calls)
+**Verified with V3 run**: 7 train + 2 val = 6(2) + 4(7) + 2 = **42 calls** ✓
+
+**Why val is scored 4 times**: Baseline (Phase 1) establishes reference, gate skill (Phase 4) validates skill edits, gate memory (Phase 7) validates memory edits, final (Phase 8) confirms final score. Each scoring = attempt + judge = 2 calls per val task.
 
 ## Diagnostic Commands
 

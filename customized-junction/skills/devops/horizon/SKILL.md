@@ -611,6 +611,20 @@ The pipeline writes intermediate stage files to `data/mcp-runs/run-<timestamp>-<
 
 When capturing pipeline output, `grep '"jsonrpc"'` only matches single-line JSON objects. The `hz_run_pipeline` result is multi-line (progress text + JSON-RPC response). For debugging, capture the full stdout without filtering (`> /tmp/out.txt`). For production use, the summaries are written to `data/summaries/` and `data/mcp-runs/<id>/` regardless of whether the JSON-RPC response was captured — the files are the deliverable, not the stdout.
 
+### `hz_get_run_summary` truncation on large summaries — read file directly
+
+`hz_get_run_summary` returns the full summary text inline via the tool framework. For large summaries (e.g., 346 items → 37 filtered → 111K chars), the framework may truncate the response — you'll see `[Truncated: tool response was 111,539 chars.]` instead of the full content. This is a framework-level cap, not a Horizon bug.
+
+**Fix:** Read the summary file directly from disk using `read_file`. The `summary_artifact` path is always present in `hz_list_runs` metadata when `summary_generated_at` is set.
+
+```
+# hz_list_runs → pick latest complete run → note summary_artifact path
+# e.g. D:\workspace\AI-research\Horizon\data\mcp-runs\run-20260716T004525Z-b342e82a\summary-zh.md
+read_file(path="<summary_artifact>", limit=200)
+```
+
+This is also what Step 5 of the daily-ai-news workflow intends by "Read first ~100 lines" — prefer `read_file` on the artifact path over `hz_get_run_summary` when presenting results to the user. `hz_get_run_summary` is fine for quick inspection (small runs, checking existence) but unreliable for full-content delivery on busy news days.
+
 ## Gateway MCP Connection Debugging
 
 When Horizon tools are absent from Hermes but the config looks correct, the issue is at the gateway MCP transport layer. Use this diagnostic sequence:

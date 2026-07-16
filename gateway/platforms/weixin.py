@@ -139,6 +139,7 @@ ITEM_IMAGE = 2
 ITEM_VOICE = 3
 ITEM_FILE = 4
 ITEM_VIDEO = 5
+ITEM_NOTE = 8  # 收藏 / 笔记
 
 MSG_TYPE_USER = 1
 MSG_TYPE_BOT = 2
@@ -945,7 +946,7 @@ def _extract_text(item_list: List[Dict[str, Any]]) -> str:
             ref = item.get("ref_msg") or {}
             ref_item = ref.get("message_item") or {}
             ref_type = ref_item.get("type")
-            if ref_type in {ITEM_IMAGE, ITEM_VIDEO, ITEM_FILE, ITEM_VOICE}:
+            if ref_type in {ITEM_IMAGE, ITEM_VIDEO, ITEM_FILE, ITEM_VOICE, ITEM_NOTE}:
                 title = ref.get("title") or ""
                 prefix = f"[引用媒体: {title}]\n" if title else "[引用媒体]\n"
                 return f"{prefix}{text}".strip()
@@ -960,7 +961,18 @@ def _extract_text(item_list: List[Dict[str, Any]]) -> str:
                     return f"[引用: {' | '.join(parts)}]\n{text}".strip()
             return text
     for item in item_list:
-        if item.get("type") == ITEM_VOICE:
+        item_type = item.get("type")
+        if item_type == ITEM_NOTE:
+            note = item.get("note_item") or {}
+            content = str(note.get("content") or note.get("text") or "").strip()
+            title = str(note.get("title") or "").strip()
+            if title and content:
+                return f"[笔记: {title}]\n{content}"
+            if content:
+                return f"[笔记]\n{content}"
+            if title:
+                return f"[笔记: {title}]"
+        if item_type == ITEM_VOICE:
             voice_text = str((item.get("voice_item") or {}).get("text") or "")
             if voice_text:
                 return voice_text
@@ -1226,6 +1238,15 @@ class WeixinAdapter(BasePlatformAdapter):
         self._pending_text_batches: Dict[str, MessageEvent] = {}
         self._pending_text_batch_tasks: Dict[str, asyncio.Task] = {}
 
+        # Auto-loaded skill(s) for every session. Configurable via
+        # config.extra.auto_skill or WEIXIN_AUTO_SKILL env var.
+        # Default: "obsidian-sync" to archive all messages to Obsidian.
+        _auto_skill_raw = extra.get("auto_skill") or os.getenv("WEIXIN_AUTO_SKILL")
+        if _auto_skill_raw is None:
+            _auto_skill_raw = "obsidian-sync"
+        _auto_skill_raw = str(_auto_skill_raw).strip()
+        self._auto_skill = _auto_skill_raw if _auto_skill_raw else None
+
         if self._account_id and not self._token:
             persisted = load_weixin_account(hermes_home, self._account_id)
             if persisted:
@@ -1465,6 +1486,7 @@ class WeixinAdapter(BasePlatformAdapter):
             media_urls=media_paths,
             media_types=media_types,
             timestamp=datetime.now(),
+            auto_skill=self._auto_skill,
         )
         logger.info("[%s] inbound from=%s type=%s media=%d", self.name, _safe_id(sender_id), source.chat_type, len(media_paths))
         if event.message_type == MessageType.TEXT:

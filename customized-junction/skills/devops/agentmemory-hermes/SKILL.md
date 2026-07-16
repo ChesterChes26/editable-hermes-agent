@@ -232,18 +232,41 @@ curl -s -X POST http://localhost:3111/agentmemory/smart-search \
 hermes config set memory.provider agentmemory
 hermes config set plugins.enabled '["agentmemory"]'
 
-# 4. 重启 gateway（Windows: restart 只 kill 不 start，需手动 run）
+# 4. 同步修复 template config（否则下次重启会被覆盖回去！）
+python -c "
+import yaml, os
+path = os.path.expandvars(r'%LOCALAPPDATA%\hermes\hermes-agent\user-config\config.yaml')
+cfg = yaml.safe_load(open(path))
+changed = False
+if cfg.get('memory',{}).get('provider') != 'agentmemory':
+    cfg.setdefault('memory',{})['provider'] = 'agentmemory'; changed = True
+if 'agentmemory' not in cfg.get('plugins',{}).get('enabled',[]):
+    cfg.setdefault('plugins',{}).setdefault('enabled',[]).append('agentmemory'); changed = True
+if changed:
+    yaml.dump(cfg, open(path,'w'), default_flow_style=False, sort_keys=False)
+    print('Fixed template config')
+else:
+    print('Template already correct')
+"
+
+# 5. 确认 mcp_servers 里没有 agentmemory（plugin 走 REST，MCP 会撑爆 QB 128 限制）
+# 如果有，删掉：hermes mcp remove agentmemory
+
+# 6. 重启 gateway（Windows: restart 只 kill 不 start，需手动 run）
 hermes gateway restart 2>&1 || true   # kill 旧的
 hermes gateway run &                   # 后台启动新的
 
-# 5. 恢复 watchdog
+# 7. 恢复 watchdog
 # cronjob action=resume job_id=<watchdog_id>
 
-# 6. 验证
+# 8. 验证
 hermes memory status   # 应显示 Provider: agentmemory, Plugin: installed ✓, Status: available ✓
 ```
 
-**常见陷阱：** 恢复时只改 Hermes 配置但忘记重启容器 → watchdog 继续检测到死容器 → 继续弹窗。容器和配置要一起恢复。
+**常见陷阱：**
+- 恢复时只改 Hermes 配置但忘记重启容器 → watchdog 继续检测到死容器 → 继续弹窗。容器和配置要一起恢复。
+- **忘记修 template config** → 下次 Hermes 重启会从 template 恢复，agentmemory 配置被静默覆盖。runtime config 和 template config 必须同步。
+- **`mcp_servers.agentmemory` 与 plugin 共存** → agentmemory plugin 走 REST API（MemoryProvider 接口），不需要 MCP transport。如果同时配了 `mcp_servers.agentmemory`，会多出 ~50 个 MCP 工具，撑爆 QB gateway 的 128 工具硬限制（详见 wiki `queries(问答)/qb-gateway-tools-limit.md`）。plugin 已覆盖所有 memory 功能，MCP server 配置应删除。
 
 **Windows gateway 重启陷阱：** `hermes gateway start` 走的是 systemd/launchd（Linux/macOS 后台服务），Windows 不支持——会卡在 "Install it now so the gateway starts on login?" 的 service 安装提示然后退出，gateway 实际没起来。正确命令是 `hermes gateway run`（foreground 模式，手动后台化）。验证：`tail -5 ~/AppData/Local/hermes/logs/gateway.log` 应看到各平台 "connected"。
 
